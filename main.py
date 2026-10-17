@@ -24,7 +24,7 @@ def collection_text(user_id, page):
         cards,total = storage.get_cards(user_id,page)
     if not cards:
         return '🃏 Your harem is empty. Catch a character in a group!',None
-    rows = [f"• {c['name']} · {c['rarity']} · Gen {c['generation']}\n  🆔 {c['code']}" for c in cards]
+    rows = [f"{'⭐ ' if c['favorite'] else ''}• {c['name']} · {c['rarity']} · Gen {c['generation']}\n  🆔 {c['code']}" for c in cards]
     keyboard = types.InlineKeyboardMarkup()
     buttons = []
     if page:
@@ -38,7 +38,7 @@ def collection_text(user_id, page):
 
 @bot.message_handler(commands=['start','help'])
 def help_command(msg):
-    bot.reply_to(msg, '🃏 Character Catcher (Phase 1)\n/harem — global collection\n/check CODE — card details\n/changetime COUNT — group admin\nGuess a spawn by typing its name!')
+    bot.reply_to(msg, '🃏 Character Catcher (Phase 1)\n/harem — global collection\n/check CODE — card details\n/fav CODE · /mfav CODES · /unfav CODE\n/search NAME\n/changetime COUNT — group admin\nGuess a spawn by typing its name!')
 
 
 @bot.message_handler(commands=['harem','collection','recent'])
@@ -79,6 +79,39 @@ def check(msg):
         return
     bot.reply_to(msg,f"🃏 {row['name']} — {row['series']}\n{row['rarity']} · Gen {row['generation']}\n🆔 {row['code']}")
 
+
+
+
+@bot.message_handler(commands=['fav','mfav','unfav'])
+def favorites_command(msg):
+    command = msg.text.split()[0].split('@')[0].lower()
+    codes = msg.text.split()[1:]
+    if command == '/fav' and len(codes) != 1:
+        bot.reply_to(msg, 'Usage: /fav CODE')
+        return
+    if command == '/mfav' and not 1 <= len(codes) <= 20:
+        bot.reply_to(msg, 'Usage: /mfav CODE1 CODE2 ... (up to 20)')
+        return
+    if command == '/unfav' and len(codes) != 1:
+        bot.reply_to(msg, 'Usage: /unfav CODE')
+        return
+    changed = storage.set_favorites(msg.from_user.id, codes, command != '/unfav')
+    bot.reply_to(msg, f'⭐ Updated {changed} card(s).' if changed else
+                 'No changes. Check that you own every card code.')
+
+
+@bot.message_handler(commands=['search'])
+def search_command(msg):
+    parts = msg.text.split(maxsplit=1)
+    if len(parts) < 2 or not 2 <= len(parts[1].strip()) <= 80:
+        bot.reply_to(msg, 'Usage: /search CHARACTER OR SERIES')
+        return
+    found = storage.search_characters(parts[1])
+    if not found:
+        bot.reply_to(msg, 'No matching characters found.')
+        return
+    lines = [f"#{c['id']} · {c['name']} — {c['series']} ({c['rarity']})" for c in found]
+    bot.reply_to(msg, '🔎 Character Search\n' + '\n'.join(lines))
 
 @bot.message_handler(commands=['changetime'])
 def changetime(msg):
