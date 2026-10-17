@@ -1,36 +1,39 @@
-# Telegram Card Catcher — Phase 1 Starter
+# Telegram Card Catcher
 
-Telegram collectible-character bot, inspired by Character Catcher and Sofi gameplay. **Development starter, not production-ready.**
+Character collection bot for Telegram, influenced by Character Catcher (name-guess spawns and global harem) and Sofi (planned collection customization). **Development only — not deployed or live-tested.**
 
-## Implemented
-- Group activity-count spawns with first correct name claim.
-- Global per-user collection with `/harem`, `/collection`, `/recent`.
-- `/check CODE` / `/view CODE` inspect a card.
-- `/changetime COUNT` group-admin spawn setting (10–500).
-- Individual unique card codes; per-character generation; PostgreSQL locking to avoid concurrent duplicate claims.
-- Image URL via Telegram with subsequent `file_id` cache and text fallback.
-- Flask Telegram webhook, Render Free blueprint, Neon PostgreSQL schema.
+## Implemented now
+- Auto character spawn by group message count (admin configurable with `/changetime 10..500`).
+- First correct free-text character name or alias wins; 15-minute spawn expiration, DB row locking for one winner.
+- 10-character unique alphanumeric card code and serialized per-character generation.
+- `/harem` / `/collection` / `/recent`: global collection, eight entries/page, inline next/previous.
+- `/check CODE` / `/view CODE`; `/start`, `/help`.
+- Telegram direct HTTPS URL and cached `file_id` fallback; failed image sends cancel the spawn.
+- Rarity metadata for Common, Uncommon, Rare, Legendary, Mystical, Divine, CrossVerse, Cataphract, Supreme, CNFT; configurable per-character spawn weights.
+- Validated JSON character importer, CI workflow with offline validation unit tests.
 
-## Still needed before live usage
-- Populate `characters` database: there are **no supplied characters or images yet**.
-- Configure Telegram BotFather privacy setting off for normal group text guesses.
-- Create a new Neon database and a Telegram bot token; supply environment variables to Render.
-- Deploy only when explicitly requested. Register webhook once with `setup_webhook.py` from a trusted environment.
-- End-to-end and database integration testing; idempotent webhook update handling, active spawn expiration, retry controls.
-- Daily caps, collection UI, full rarity weighting, trading, gifting, Sofi multi-card drop, variants, marketplace, image rendering, quests and events.
+## Character data import
+No real artwork/characters are supplied. `data/characters.example.json` is illustrative only — **example.com URL will not work**. Use *licensed/permitted* publicly reachable HTTPS image URLs and unique `source_key` values. Edit or create a JSON array and run:
 
-## Environment
-Copy the names from `.env.example` into Render Secrets:
-- `BOT_TOKEN` — Telegram bot token, **never commit**
-- `DATABASE_URL` — private Neon PostgreSQL connection URL
-- `WEBHOOK_SECRET` — strong random secret accepted as Telegram secret header
-- `PUBLIC_BASE_URL` — actual deployed https service base
-- `SPAWN_MESSAGES` — default group messages between spawns (default 35)
+```bash
+python -m scripts.import_characters data/your_characters.json
+```
 
-Render start: `gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads 4 main:app`.
-The app initializes schema at startup. The Telegram webhook needs separate registration after service deploy.
+Required fields: `source_key`, `name`, `series`, `image_url`.
+Optional: `aliases`, `category`, `rarity`, `weight` (1..10000).
+Importer upserts in one DB transaction. Changes to an existing image URL do not automatically invalidate a cached Telegram `file_id`; clear it if replacing art.
 
-**Important:** The starter's `characters` table is initially empty, so spawns will not produce art until data is imported. Free Render may sleep, and local files are ephemeral. Database and Telegram media caching are the intended persistent paths.
+## Render + Neon setup (not performed)
+1. Create independent Neon Postgres database.
+2. Create Telegram bot with BotFather; set privacy **disabled** to receive ordinary group guesses.
+3. Set Render environment variables from `.env.example`: `BOT_TOKEN`, `DATABASE_URL`, `WEBHOOK_SECRET`, `PUBLIC_BASE_URL`, `SPAWN_MESSAGES`.
+4. Deploy web service from `render.yaml` **only after approval**. Database schema is initialized on app startup.
+5. Register Telegram webhook once after deployment from a trusted environment: `python setup_webhook.py`. Never commit secrets.
 
-## Design roadmap
-Maintain existing plans for 10 reference rarity categories, anime/manga/manhwa/webtoon/game/original character pools, unique code/variant support, profile art, cards, favorites, search, trade, gift, market, economy, crafting, evolution, guilds, raid, achievements, events, and optimized URL / file_id / Pillow delivery. These are roadmap features, **not yet implemented**.
+## Caveats before production
+- Webhook update deduplication, retry-safe delivery, daily claim caps, and monitoring remain incomplete.
+- Live PostgreSQL integration and Telegram API testing have NOT been performed. GitHub Actions is only syntax and isolated unit checks.
+- Free Render instances sleep; no background timers will reliably run while sleeping.
+- High-volume random weighted character selection should later be optimized for large catalogs.
+- Marketplace/trades, 3-card Sofi drop, visual cards, AI original art, cosmetic frames, favorites, rarity balances, quests, raids, guilds, and other agreed features remain on roadmap.
+- No real-money/crypto/NFT commerce is implemented.
