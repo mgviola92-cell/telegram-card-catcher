@@ -1,89 +1,145 @@
-"""Phase 1 Telegram collectible-character bot (webhook MVP)."""
-import os
+"""Telegram character catcher: Phase 1, no persistent local media."""
 import logging
+import os
 from flask import Flask, abort, request
 import telebot
+from telebot import types
 from app import storage
 
 logging.basicConfig(level=logging.INFO)
 TOKEN = os.environ['BOT_TOKEN']
 SECRET = os.environ['WEBHOOK_SECRET']
-PUBLIC_BASE_URL = os.environ['PUBLIC_BASE_URL'].rstrip('/')
-SPAWN_MESSAGES = int(os.environ.get('SPAWN_MESSAGES', '35'))
+SPAWN_MESSAGES = int(os.environ.get('SPAWN_MESSAGES','35'))
 bot = telebot.TeleBot(TOKEN, threaded=False)
 app = Flask(__name__)
 storage.initialize()
 
+
+def collection_text(user_id, page):
+    cards,total = storage.get_cards(user_id,page)
+    pages = max(1,(total+7)//8)
+    page = min(max(0,page),pages-1)
+    if page*8>=total and total:
+        cards,total = storage.get_cards(user_id,page)
+    if not cards:
+        return '🃏 Your harem is empty. Catch a character in a group!',None
+    rows = [f"• {c['name']} · {c['rarity']} · Gen {c['generation']}\n  🆔 {c['code']}" for c in cards]
+    keyboard = types.InlineKeyboardMarkup()
+    buttons = []
+    if page:
+        buttons.append(types.InlineKeyboardButton('◀️',callback_data=f'harem:{user_id}:{page-1}'))
+    buttons.append(types.InlineKeyboardButton(f'{page+1}/{pages}',callback_data='noop'))
+    if page+1<pages:
+        buttons.append(types.InlineKeyboardButton('▶️',callback_data=f'harem:{user_id}:{page+1}'))
+    keyboard.row(*buttons)
+    return f'🃏 Global Harem · {total} cards\n\n'+'\n'.join(rows),keyboard
+
+
 @bot.message_handler(commands=['start','help'])
 def help_command(msg):
-    bot.reply_to(msg, '🃏 Character Catcher — Phase 1\n/harem — your collection\n/check CODE — inspect card\n/changetime COUNT — admins only\nCatch a spawn by typing its character name first!')
+    bot.reply_to(msg, '🃏 Character Catcher (Phase 1)\n/harem — global collection\n/check CODE — card details\n/changetime COUNT — group admin\nGuess a spawn by typing its name!')
+
 
 @bot.message_handler(commands=['harem','collection','recent'])
 def harem(msg):
-    cards = storage.get_cards(msg.from_user.id)
-    if not cards:
-        bot.reply_to(msg, 'Your harem is empty. Catch a character in a group!')
+    text,keyboard = collection_text(msg.from_user.id,0)
+    bot.reply_to(msg,text,reply_markup=keyboard)
+
+
+@bot.callback_query_handler(func=lambda q: q.data.startswith('harem:') or q.data=='noop')
+def turn_page(q):
+    if q.data=='noop':
+        bot.answer_callback_query(q.id)
         return
-    lines = [f"{r['code']} | {r['name']} | {r['rarity']} | Gen {r['generation']}" for r in cards]
-    bot.reply_to(msg, '🃏 Recent cards\n' + '\n'.join(lines))
+    try:
+        _,owner,page = q.data.split(':')
+        if int(owner)!=q.from_user.id:
+            bot.answer_callback_query(q.id,'This is not your collection.',show_alert=True)
+            return
+        page = int(page)
+        if page<0 or page>99999:
+            raise ValueError
+        text,keyboard = collection_text(q.from_user.id,page)
+        bot.edit_message_text(text,q.message.chat.id,q.message.message_id,reply_markup=keyboard)
+        bot.answer_callback_query(q.id)
+    except (ValueError,TypeError):
+        bot.answer_callback_query(q.id,'Invalid page.')
+
 
 @bot.message_handler(commands=['check','view'])
 def check(msg):
     parts = msg.text.split(maxsplit=1)
-    if len(parts) < 2:
-        bot.reply_to(msg, 'Use /check CODE')
+    if len(parts)<2:
+        bot.reply_to(msg,'Usage: /check CODE')
         return
-    with storage.connect() as db:
-        row = db.execute('''SELECT o.code,o.generation,c.name,c.series,c.rarity FROM owned_cards o
-          JOIN characters c ON c.id=o.character_id WHERE o.code=%s''', (parts[1].strip().upper(),)).fetchone()
-    bot.reply_to(msg, f"🃏 {row['name']} ({row['series']})\n{row['rarity']} • Gen {row['generation']}\nCode: {row['code']}" if row else 'Card not found.')
+    row=storage.get_card(parts[1].strip())
+    if not row:
+        bot.reply_to(msg,'Card not found.')
+        return
+    bot.reply_to(msg,f"🃏 {row['name']} — {row['series']}\n{row['rarity']} · Gen {row['generation']}\n🆔 {row['code']}")
+
 
 @bot.message_handler(commands=['changetime'])
 def changetime(msg):
-    if msg.chat.type == 'private':
-        bot.reply_to(msg, 'This is a group admin command.')
+    if msg.chat.type=='private':
+        bot.reply_to(msg,'Group admins only.')
         return
-    member = bot.get_chat_member(msg.chat.id, msg.from_user.id)
+    member=bot.get_chat_member(msg.chat.id,msg.from_user.id)
     if member.status not in ('administrator','creator'):
-        bot.reply_to(msg, 'Admins only.')
+        bot.reply_to(msg,'Group admins only.')
         return
-    parts = msg.text.split(maxsplit=1)
     try:
-        value = int(parts[1])
-        if not 10 <= value <= 500:
+        value=int(msg.text.split(maxsplit=1)[1])
+        if not 10<=value<=500:
             raise ValueError
     except (ValueError,IndexError):
-        bot.reply_to(msg, 'Usage: /changetime 35 (10–500 messages)')
+        bot.reply_to(msg,'Usage: /changetime 35 (10–500)')
         return
-    storage.set_spawn_rate(msg.chat.id, value)
-    bot.reply_to(msg, f'Spawn rate updated: {value} messages.')
+    storage.set_spawn_rate(msg.chat.id,value)
+    bot.reply_to(msg,f'✅ Spawn every {value} messages.')
 
-@bot.message_handler(func=lambda m: m.chat.type in ('group','supergroup') and bool(m.text) and not m.text.startswith('/'), content_types=['text'])
+
+def send_spawn(chat_id,char):
+    caption=f"✨ A character appeared!\nSeries: {char['series']} · {char['rarity']}\nGuess the name!"
+    sources=[char.get('telegram_file_id'),char.get('image_url')]
+    for source in filter(None,sources):
+        try:
+            message=bot.send_photo(chat_id,source,caption=caption)
+            if message.photo and not char.get('telegram_file_id'):
+                storage.cache_image(char['id'],message.photo[-1].file_id)
+            return
+        except Exception:
+            logging.exception('Spawn image source failed')
+    # Do not leave an uncatchable invisible card active.
+    storage.clear_spawn(chat_id,char['id'])
+    logging.error('Spawn discarded: no usable image for character %s',char['id'])
+
+
+@bot.message_handler(func=lambda m: m.chat.type in ('group','supergroup') and bool(m.text) and not m.text.startswith('/'),content_types=['text'])
 def activity(msg):
-    char = storage.claim(msg.chat.id, msg.from_user.id, msg.text)
-    if char:
-        bot.reply_to(msg, f"🎉 Caught {char['name']}!\nRarity: {char['rarity']}\nGen {char['generation']} • Code: {char['code']}")
+    if msg.from_user.is_bot:
         return
-    spawned = storage.try_spawn(msg.chat.id, SPAWN_MESSAGES)
-    if not spawned:
+    caught=storage.claim(msg.chat.id,msg.from_user.id,msg.text)
+    if caught:
+        bot.reply_to(msg,f"🎉 {caught['name']} caught!\n{caught['rarity']} · Gen {caught['generation']}\n🆔 {caught['code']}")
         return
-    caption = f"✨ A wild character appeared!\n{spawned['series']} • {spawned['rarity']}\nGuess the character's name in chat!"
-    try:
-        photo = bot.send_photo(msg.chat.id, spawned['telegram_file_id'] or spawned['image_url'], caption=caption)
-        if photo.photo and not spawned['telegram_file_id']:
-            storage.cache_image(spawned['id'], photo.photo[-1].file_id)
-    except Exception:
-        logging.exception('Image send failed, using text fallback')
-        bot.send_message(msg.chat.id, caption)
+    spawned=storage.try_spawn(msg.chat.id,SPAWN_MESSAGES)
+    if spawned:
+        send_spawn(msg.chat.id,spawned)
+
 
 @app.get('/')
 def health():
     return {'status':'ok','phase':1}
 
+
 @app.post('/telegram/<secret>')
 def webhook(secret):
-    if secret != SECRET or request.headers.get('X-Telegram-Bot-Api-Secret-Token') != SECRET:
+    if secret!=SECRET or request.headers.get('X-Telegram-Bot-Api-Secret-Token')!=SECRET:
         abort(403)
-    update = telebot.types.Update.de_json(request.get_data(as_text=True))
+    data=request.get_json(silent=True)
+    if not isinstance(data,dict) or 'update_id' not in data:
+        abort(400)
+    update=types.Update.de_json(data)
     bot.process_new_updates([update])
-    return 'OK', 200
+    return 'OK',200
