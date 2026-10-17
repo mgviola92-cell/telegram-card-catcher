@@ -36,3 +36,15 @@ CREATE TABLE IF NOT EXISTS processed_updates (
   processed_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS processed_updates_age ON processed_updates(processed_at);
+
+CREATE TABLE IF NOT EXISTS trade_offers (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  sender_id BIGINT NOT NULL,
+  receiver_id BIGINT NOT NULL,
+  sender_code TEXT NOT NULL,
+  receiver_code TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS pending_trades_receiver ON trade_offers(receiver_id,created_at DESC)
+  WHERE status='pending';
