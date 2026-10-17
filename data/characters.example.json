@@ -1,0 +1,12 @@
+[
+  {
+    "source_key": "original:sample-001",
+    "name": "Example Hero",
+    "series": "Original Demo",
+    "aliases": ["Demo Hero"],
+    "category": "original_ai",
+    "rarity": "Common",
+    "weight": 100,
+    "image_url": "https://example.com/replace-with-permitted-artwork.png"
+  }
+]
