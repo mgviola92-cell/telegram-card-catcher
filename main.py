@@ -5,6 +5,7 @@ from flask import Flask, abort, request
 import telebot
 from telebot import types
 from app import storage
+from app.webhook_guard import begin_update
 
 logging.basicConfig(level=logging.INFO)
 TOKEN = os.environ['BOT_TOKEN']
@@ -140,6 +141,10 @@ def webhook(secret):
     data=request.get_json(silent=True)
     if not isinstance(data,dict) or 'update_id' not in data:
         abort(400)
+    if not isinstance(data['update_id'], int):
+        abort(400)
+    if not begin_update(data['update_id']):
+        return 'OK',200
     update=types.Update.de_json(data)
     bot.process_new_updates([update])
     return 'OK',200
