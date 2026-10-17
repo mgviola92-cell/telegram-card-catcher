@@ -24,7 +24,7 @@ def get_cards(user_id, page=0, size=8):
     page = max(0, min(int(page), 99999))
     with connect() as db:
         total = db.execute('SELECT count(*) AS n FROM owned_cards WHERE owner_id=%s', (user_id,)).fetchone()['n']
-        cards = db.execute("""SELECT o.code,o.generation,c.name,c.series,c.rarity
+        cards = db.execute("""SELECT o.code,o.generation,o.favorite,c.name,c.series,c.rarity
             FROM owned_cards o JOIN characters c ON c.id=o.character_id
             WHERE o.owner_id=%s ORDER BY o.obtained_at DESC,o.id DESC
             LIMIT %s OFFSET %s""", (user_id, size, page * size)).fetchall()
@@ -121,3 +121,30 @@ def set_spawn_rate(chat_id, count):
     with connect() as db:
         db.execute("""INSERT INTO group_settings(chat_id,spawn_every) VALUES (%s,%s)
             ON CONFLICT(chat_id) DO UPDATE SET spawn_every=EXCLUDED.spawn_every""", (chat_id,count))
+
+
+def set_favorites(user_id, codes, enabled=True):
+    """All-or-nothing, only the requesting owner's cards can change."""
+    codes = list(dict.fromkeys(c.strip().upper() for c in codes if c.strip()))
+    if not codes or len(codes) > 20 or any(len(c) > 32 for c in codes):
+        return 0
+    with connect() as db:
+        with db.cursor() as cur:
+            rows = cur.execute('SELECT code FROM owned_cards WHERE owner_id=%s AND code=ANY(%s) FOR UPDATE',
+                               (user_id, codes)).fetchall()
+            if len(rows) != len(codes):
+                return 0
+            cur.execute('UPDATE owned_cards SET favorite=%s WHERE owner_id=%s AND code=ANY(%s)',
+                        (enabled, user_id, codes))
+            return len(codes)
+
+
+def search_characters(term, limit=10):
+    term = term.strip()
+    if len(term) < 2 or len(term) > 80:
+        return []
+    escaped = term.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
+    with connect() as db:
+        return db.execute('''SELECT id,name,series,rarity FROM characters
+            WHERE enabled=true AND (name ILIKE %s ESCAPE '\\' OR series ILIKE %s ESCAPE '\\')
+            ORDER BY name,id LIMIT %s''', ('%'+escaped+'%', '%'+escaped+'%', limit)).fetchall()
