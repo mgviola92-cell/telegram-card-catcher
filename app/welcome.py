@@ -31,10 +31,14 @@ COMMANDS_TEXT = (
     "/unfav CODE — Favorite ဖယ်ရန်\n\n"
     "🔎 𝗦𝗘𝗔𝗥𝗖𝗛\n"
     "/search NAME — Character/Series ရှာရန်\n\n"
+    "🤝 𝗦𝗢𝗖𝗜𝗔𝗟\n"
+    "/gift CODE — Reply ဖြင့် Card လက်ဆောင်ပေးရန်\n"
+    "/trade CODE1 CODE2 — Reply ဖြင့် Trading\n"
+    "/gtop — Global Card Leaderboard\n\n"
     "⚙️ 𝗚𝗥𝗢𝗨𝗣 𝗔𝗗𝗠𝗜𝗡\n"
     "/changetime COUNT — Spawn Message Count ပြင်ရန် (10–500)\n\n"
     "📌 Spawn ပုံပေါ်လာရင် Character နာမည်ကို Chat ထဲမှာ ရိုက်ပါ။\n"
-    "🚧 Trade, Gift, Market, Advanced Cards တွေကို ဆက်တည်ဆောက်နေပါတယ်။"
+    "🚧 Market, Advanced Cards, Events တွေကို ဆက်တည်ဆောက်နေပါတယ်။"
 )
 
 
