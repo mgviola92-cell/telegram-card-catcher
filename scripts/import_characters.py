@@ -55,7 +55,9 @@ def import_batch(items):
                 ON CONFLICT (source_key) WHERE source_key IS NOT NULL DO UPDATE
                 SET name=EXCLUDED.name, series=EXCLUDED.series, aliases=EXCLUDED.aliases,
                     category=EXCLUDED.category, rarity=EXCLUDED.rarity,
-                    image_url=EXCLUDED.image_url, weight=EXCLUDED.weight""",
+                    image_url=EXCLUDED.image_url, weight=EXCLUDED.weight,
+                    telegram_file_id=CASE WHEN characters.image_url IS DISTINCT FROM EXCLUDED.image_url
+                        THEN NULL ELSE characters.telegram_file_id END""",
                 (key,name,series,aliases,category,rarity,url,weight))
     return len(rows)
 
