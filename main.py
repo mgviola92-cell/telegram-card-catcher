@@ -7,6 +7,7 @@ from telebot import types
 from app import storage
 from app.webhook_guard import begin_update
 from app import welcome
+from app import economy, trading
 
 logging.basicConfig(level=logging.INFO)
 TOKEN = os.environ['BOT_TOKEN']
@@ -144,6 +145,76 @@ def search_command(msg):
         return
     lines = [f"#{c['id']} · {c['name']} — {c['series']} ({c['rarity']})" for c in found]
     bot.reply_to(msg, '🔎 Character Search\n' + '\n'.join(lines))
+
+
+@bot.message_handler(commands=['gift'])
+def gift_command(msg):
+    if not msg.reply_to_message or not msg.reply_to_message.from_user:
+        bot.reply_to(msg, 'Reply to a player: /gift CODE')
+        return
+    args = msg.text.split()
+    if len(args) != 2:
+        bot.reply_to(msg, 'Usage: reply to player with /gift CODE')
+        return
+    recipient = msg.reply_to_message.from_user
+    if recipient.is_bot:
+        bot.reply_to(msg, 'Cannot gift to bots.')
+        return
+    transferred = economy.gift_card(msg.from_user.id, recipient.id, args[1])
+    bot.reply_to(msg, f'🎁 Card {args[1].upper()} gifted!' if transferred else
+                 'Gift failed: card not owned or invalid receiver.')
+
+
+@bot.message_handler(commands=['trade'])
+def trade_command(msg):
+    if not msg.reply_to_message or not msg.reply_to_message.from_user:
+        bot.reply_to(msg, 'Reply to another player: /trade YOUR_CODE THEIR_CODE')
+        return
+    tokens = msg.text.split()
+    if len(tokens) != 3:
+        bot.reply_to(msg, 'Usage: /trade YOUR_CODE THEIR_CODE')
+        return
+    other = msg.reply_to_message.from_user
+    if other.is_bot:
+        bot.reply_to(msg, 'Cannot trade with bots.')
+        return
+    offer_id = trading.create_offer(msg.from_user.id, other.id, tokens[1], tokens[2])
+    if not offer_id:
+        bot.reply_to(msg, 'Trade failed: check both codes and owners.')
+        return
+    kb = types.InlineKeyboardMarkup()
+    kb.row(types.InlineKeyboardButton('✅ Accept', callback_data=f'trade:{offer_id}:yes'),
+           types.InlineKeyboardButton('❌ Decline', callback_data=f'trade:{offer_id}:no'))
+    bot.reply_to(msg, f'🤝 Trade offer #{offer_id}\n{tokens[1].upper()} ⇄ {tokens[2].upper()}\n'
+                 'Only the recipient can accept within 10 minutes.',reply_markup=kb)
+
+
+@bot.callback_query_handler(func=lambda q: bool(q.data) and q.data.startswith('trade:'))
+def trade_callback(q):
+    try:
+        _,offer_id,decision=q.data.split(':')
+        if decision not in ('yes','no'):
+            raise ValueError
+        ok=trading.finish_offer(int(offer_id),q.from_user.id,decision=='yes')
+        bot.answer_callback_query(q.id,'Trade completed!' if ok and decision=='yes' else
+                                  ('Trade declined.' if ok else 'Invalid or expired trade.'),show_alert=True)
+        if ok:
+            bot.edit_message_reply_markup(q.message.chat.id,q.message.message_id,reply_markup=None)
+    except (ValueError, TypeError):
+        bot.answer_callback_query(q.id,'Invalid trade request.',show_alert=True)
+
+
+@bot.message_handler(commands=['gtop'])
+def global_top(msg):
+    rows=economy.leaderboard()
+    if not rows:
+        bot.reply_to(msg,'No cards caught yet.')
+        return
+    result=['🏆 Global Top Catchers']
+    for index,row in enumerate(rows,1):
+        result.append(f"{index}. User {row['owner_id']} — {row['total']} cards")
+    bot.reply_to(msg,'\n'.join(result))
+
 
 @bot.message_handler(commands=['changetime'])
 def changetime(msg):
