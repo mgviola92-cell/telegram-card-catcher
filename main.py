@@ -6,6 +6,7 @@ import telebot
 from telebot import types
 from app import storage
 from app.webhook_guard import begin_update
+from app import welcome
 
 logging.basicConfig(level=logging.INFO)
 TOKEN = os.environ['BOT_TOKEN']
@@ -36,9 +37,40 @@ def collection_text(user_id, page):
     return f'🃏 Global Harem · {total} cards\n\n'+'\n'.join(rows),keyboard
 
 
-@bot.message_handler(commands=['start','help'])
+@bot.message_handler(commands=['start'])
+def start_command(msg):
+    bot.send_message(msg.chat.id, welcome.WELCOME_TEXT,
+                     reply_markup=welcome.welcome_keyboard())
+
+
+@bot.message_handler(commands=['help','cmds'])
 def help_command(msg):
-    bot.reply_to(msg, '🃏 Character Catcher (Phase 1)\n/harem — global collection\n/check CODE — card details\n/fav CODE · /mfav CODES · /unfav CODE\n/search NAME\n/changetime COUNT — group admin\nGuess a spawn by typing its name!')
+    bot.send_message(msg.chat.id, welcome.COMMANDS_TEXT,
+                     reply_markup=welcome.return_keyboard())
+
+
+@bot.callback_query_handler(func=lambda q: bool(q.data) and q.data.startswith('ui:'))
+def welcome_menu_callback(q):
+    action = q.data.partition(':')[2]
+    if action == 'harem':
+        text, keyboard = collection_text(q.from_user.id, 0)
+    elif action == 'cmds':
+        text, keyboard = welcome.COMMANDS_TEXT, welcome.return_keyboard()
+    elif action == 'guide':
+        text, keyboard = welcome.GUIDE_TEXT, welcome.return_keyboard()
+    elif action == 'home':
+        text, keyboard = welcome.WELCOME_TEXT, welcome.welcome_keyboard()
+    else:
+        bot.answer_callback_query(q.id, 'Unknown action')
+        return
+    # Edit existing menu where possible, rather than flooding the chat.
+    try:
+        bot.edit_message_text(text, q.message.chat.id, q.message.message_id,
+                              reply_markup=keyboard)
+    except telebot.apihelper.ApiTelegramException as exc:
+        if 'message is not modified' not in str(exc).lower():
+            raise
+    bot.answer_callback_query(q.id)
 
 
 @bot.message_handler(commands=['harem','collection','recent'])
