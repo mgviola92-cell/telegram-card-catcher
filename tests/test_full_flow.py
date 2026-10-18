@@ -191,3 +191,15 @@ class FullFlowTests(unittest.TestCase):
                        dict(batch_size=0),dict(batch_size=5001)):
             with self.assertRaises(ValueError):
                 storage.prune_counted_messages(**kwargs)
+
+    def test_series_progress_counts_unique_owned_characters(self):
+        with self.connect() as db:
+            db.execute("""INSERT INTO owned_cards(code,character_id,owner_id,generation)
+                VALUES ('QAPROGA',%s,701,101),('QAPROGB',%s,701,102),
+                       ('QAPROGC',%s,701,103)""",
+                       (self.cids[0],self.cids[0],self.cids[1]))
+        progress=storage.get_series_progress(701,['Integration','No Such Series'])
+        self.assertEqual(progress['Integration'][0],2)
+        self.assertGreaterEqual(progress['Integration'][1],2)
+        self.assertNotIn('No Such Series',progress)
+        self.assertEqual(storage.get_series_progress(701,[]),{})
