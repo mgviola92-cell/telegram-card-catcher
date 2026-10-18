@@ -149,6 +149,20 @@ def browse_card(q):
                 card=storage.get_card(value)
             caption=collection_ui.card_caption(card)
             keyboard=collection_ui.card_markup(q.from_user.id,value,page,card['favorite'])
+            # Favorite action updates the same card; do not repost photos.
+            if action=='cardfav':
+                try:
+                    if q.message.content_type=='photo':
+                        bot.edit_message_caption(caption,q.message.chat.id,
+                                                 q.message.message_id,reply_markup=keyboard)
+                    else:
+                        bot.edit_message_text(caption,q.message.chat.id,
+                                              q.message.message_id,reply_markup=keyboard)
+                except telebot.apihelper.ApiTelegramException as exc:
+                    if 'message is not modified' not in str(exc).lower():
+                        raise
+                bot.answer_callback_query(q.id,'Favorite updated!')
+                return
             for source in (card.get('telegram_file_id'),card.get('image_url')):
                 if not source:
                     continue
