@@ -11,6 +11,9 @@ class FullFlowTests(unittest.TestCase):
     def setUpClass(cls):
         cls.url=safe_test_database_url()
         if not cls.url: raise unittest.SkipTest('TEST_DATABASE_URL missing')
+        with psycopg.connect(cls.url) as db:
+            with open('database/schema.sql',encoding='utf-8') as schema:
+                db.execute(schema.read())
 
     def connect(self):
         return psycopg.connect(self.url,row_factory=dict_row)
