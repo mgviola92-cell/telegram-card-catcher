@@ -18,3 +18,19 @@ class FootprintAuditTests(unittest.TestCase):
         for call in db.execute.call_args_list:
             self.assertTrue(call.args[0].lstrip().startswith('SELECT'))
             self.assertNotIn('DELETE',call.args[0])
+
+    def test_pilot_blocks_metadata_without_artwork_approval(self):
+        from scripts.pilot_preflight import check
+        row={'source_key':'mal:character:123','name':'Hero','series':'Series',
+             'image_url':'https://example.org/image.jpg'}
+        result=check([row],[])
+        self.assertTrue(result['metadata_valid'])
+        self.assertFalse(result['can_pilot'])
+
+    def test_pilot_blocks_staged_rows_without_image(self):
+        from scripts.pilot_preflight import check
+        row={'source_key':'mal:character:123','name':'Hero','series':'Series',
+             'image_url':None}
+        result=check([row],[])
+        self.assertFalse(result['metadata_valid'])
+        self.assertFalse(result['can_pilot'])
