@@ -49,3 +49,30 @@ class MediaDeliveryTests(unittest.TestCase):
         bot.send_photo.side_effect=[error,SimpleNamespace(photo=[SimpleNamespace(file_id='new-id')])]
         self.assertIsNotNone(send_photo(bot,storage,123,ART))
         self.assertEqual(bot.send_photo.call_count,2)
+
+    def test_rate_limit_does_not_clear_cache_or_retry_url(self):
+        bot=Mock()
+        store=Mock()
+        bot.send_photo.side_effect=ApiTelegramException('sendPhoto',Mock(status_code=429,reason='Too Many Requests'),
+            {'error_code':429,'description':'Too Many Requests: retry after 4'})
+        self.assertIsNone(send_photo(bot,store,123,ART))
+        bot.send_photo.assert_called_once()
+        store.clear_cached_image.assert_not_called()
+
+    def test_forbidden_does_not_clear_cache_or_retry_url(self):
+        bot=Mock()
+        store=Mock()
+        bot.send_photo.side_effect=ApiTelegramException('sendPhoto',Mock(status_code=403,reason='Forbidden'),
+            {'error_code':403,'description':'Forbidden: bot was blocked by the user'})
+        self.assertIsNone(send_photo(bot,store,123,ART))
+        bot.send_photo.assert_called_once()
+        store.clear_cached_image.assert_not_called()
+
+    def test_generic_bad_request_does_not_clear_cache(self):
+        bot=Mock()
+        store=Mock()
+        bot.send_photo.side_effect=ApiTelegramException('sendPhoto',Mock(status_code=400,reason='Bad Request'),
+            {'error_code':400,'description':'Bad Request: caption is too long'})
+        self.assertIsNone(send_photo(bot,store,123,ART))
+        bot.send_photo.assert_called_once()
+        store.clear_cached_image.assert_not_called()
