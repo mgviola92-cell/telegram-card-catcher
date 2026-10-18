@@ -176,6 +176,15 @@ def set_favorites(user_id, codes, enabled=True):
             return len(codes)
 
 
+
+def toggle_favorite(user_id, code):
+    """Atomically toggle only a card still owned by this user."""
+    with connect() as db:
+        return db.execute("""UPDATE owned_cards SET favorite=NOT favorite
+            WHERE owner_id=%s AND code=%s RETURNING favorite""",
+            (user_id,code.upper())).fetchone()
+
+
 def search_characters(term, limit=10):
     term = term.strip()
     if len(term) < 2 or len(term) > 80:
