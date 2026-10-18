@@ -49,7 +49,11 @@ CREATE TABLE IF NOT EXISTS trade_offers (
 CREATE INDEX IF NOT EXISTS pending_trades_receiver ON trade_offers(receiver_id,created_at DESC)
   WHERE status='pending';
 
--- Immutable original catcher; legacy records are resolved from the earliest transfer ledger.\nALTER TABLE owned_cards ADD COLUMN IF NOT EXISTS catcher_id BIGINT;\nCREATE INDEX IF NOT EXISTS owned_cards_catcher ON owned_cards(catcher_id) WHERE catcher_id IS NOT NULL;\n\n-- Catch attribution for per-group and daily leaderboards.
+-- Immutable original catcher; legacy records resolve through the first transfer.
+ALTER TABLE owned_cards ADD COLUMN IF NOT EXISTS catcher_id BIGINT;
+CREATE INDEX IF NOT EXISTS owned_cards_catcher ON owned_cards(catcher_id) WHERE catcher_id IS NOT NULL;
+
+-- Catch attribution for per-group and daily leaderboards.
 ALTER TABLE owned_cards ADD COLUMN IF NOT EXISTS caught_chat_id BIGINT;
 CREATE INDEX IF NOT EXISTS owned_cards_group_catches
   ON owned_cards(caught_chat_id, obtained_at DESC)
