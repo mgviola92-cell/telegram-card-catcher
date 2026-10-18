@@ -7,7 +7,7 @@ from telebot import types
 from app import storage
 from app.webhook_guard import begin_update
 from app import welcome
-from app import economy, trading, collection_ui, media_delivery
+from app import economy, trading, collection_ui, media_delivery, catching
 
 logging.basicConfig(level=logging.INFO)
 TOKEN = os.environ['BOT_TOKEN']
@@ -321,18 +321,30 @@ def send_spawn(chat_id,char):
     logging.error('Spawn discarded: no usable image for character %s',char['id'])
 
 
+@bot.message_handler(commands=['catch'])
+def catch_command(msg):
+    if msg.chat.type not in ('group','supergroup') or msg.from_user.is_bot:
+        return
+    name=catching.catch_name(msg.text)
+    if not name:
+        bot.reply_to(msg,'Usage: /catch CHARACTER NAME')
+        return
+    caught=storage.claim(msg.chat.id,msg.from_user.id,name)
+    if caught:
+        bot.reply_to(msg,catching.catch_result(caught,msg.from_user))
+
+
 @bot.message_handler(func=lambda m: m.chat.type in ('group','supergroup') and bool(m.text) and not m.text.startswith('/'),content_types=['text'])
 def activity(msg):
     if msg.from_user.is_bot:
         return
-    caught=storage.claim(msg.chat.id,msg.from_user.id,msg.text)
+    caught=storage.claim(msg.chat.id,msg.from_user.id,catching.catch_name(msg.text))
     if caught:
-        bot.reply_to(msg,f"🎉 {caught['name']} caught!\n{caught['rarity']} · Gen {caught['generation']}\n🆔 {caught['code']}")
+        bot.reply_to(msg,catching.catch_result(caught,msg.from_user))
         return
     spawned=storage.try_spawn(msg.chat.id,SPAWN_MESSAGES)
     if spawned:
         send_spawn(msg.chat.id,spawned)
-
 
 @app.get('/')
 def health():
