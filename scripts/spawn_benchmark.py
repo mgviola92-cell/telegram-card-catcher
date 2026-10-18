@@ -1,9 +1,10 @@
 """Explain spawn query costs on a disposable PostgreSQL test database.
 
 Usage: TEST_DATABASE_URL=... python -m scripts.spawn_benchmark
-No data is imported, and no writes are performed.
+Synthetic data is written in a transaction and rolled back; never use production.
 """
 import json
+import argparse
 import psycopg
 from tests.test_db_integration import safe_test_database_url
 
@@ -18,8 +19,8 @@ QUERIES={
 }
 
 def run(url, sample_size=5000):
-    if not 1<=sample_size<=20000:
-        raise ValueError("sample_size must be 1..20000")
+    if not 1<=sample_size<=50000:
+        raise ValueError("sample_size must be 1..50000")
     with psycopg.connect(url) as db:
         # Populate disposable rows in a transaction and roll everything back.
         db.execute("""INSERT INTO characters(name,series,image_url,weight)
@@ -41,4 +42,8 @@ if __name__=="__main__":
     url=safe_test_database_url()
     if not url:
         raise SystemExit("Set TEST_DATABASE_URL for a disposable cardkout_test* database")
-    print(json.dumps(run(url),indent=2))
+    parser=argparse.ArgumentParser()
+    parser.add_argument("--sizes",type=int,nargs="+",default=[5000,10000,50000])
+    args=parser.parse_args()
+    for size in args.sizes:
+        print(json.dumps(run(url,size),indent=2))
