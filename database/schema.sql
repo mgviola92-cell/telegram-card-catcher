@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS processed_updates (
   processed_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ALTER TABLE processed_updates ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'done';
+ALTER TABLE processed_updates ADD COLUMN IF NOT EXISTS lease_token TEXT;
 CREATE INDEX IF NOT EXISTS processed_updates_age ON processed_updates(processed_at);
 
 CREATE TABLE IF NOT EXISTS trade_offers (
