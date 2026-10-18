@@ -110,9 +110,24 @@ def check(msg):
     if not row:
         bot.reply_to(msg,'Card not found.')
         return
-    bot.reply_to(msg,f"🃏 {row['name']} — {row['series']}\n{row['rarity']} · Gen {row['generation']}\n🆔 {row['code']}")
-
-
+    caption=(f"🃏 {row['name']} — {row['series']}\n"
+             f"✨ {row['rarity']} · Gen {row['generation']}\n"
+             f"🆔 {row['code']}")
+    # Request Telegram-hosted media first: zero Render image transfer.
+    # Fall back to Telegram pulling public HTTPS source by URL.
+    for source in (row.get('telegram_file_id'),row.get('image_url')):
+        if not source:
+            continue
+        try:
+            media=bot.send_photo(msg.chat.id,source,caption=caption)
+            if media.photo and source==row.get('image_url'):
+                with storage.connect() as db:
+                    db.execute("""UPDATE characters SET telegram_file_id=%s
+                         WHERE image_url=%s""",(media.photo[-1].file_id,row['image_url']))
+            return
+        except telebot.apihelper.ApiTelegramException:
+            logging.warning('Telegram rejected /check image source')
+    bot.reply_to(msg,caption)
 
 
 @bot.message_handler(commands=['fav','mfav','unfav'])
