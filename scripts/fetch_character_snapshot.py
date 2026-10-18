@@ -55,7 +55,17 @@ if __name__=="__main__":
     cli=argparse.ArgumentParser(description=__doc__)
     cli.add_argument("--output",required=True)
     cli.add_argument("--fetch",action="store_true",help="Explicit consent to manually fetch one official metadata snapshot")
+    cli.add_argument("--report",help="Write measured snapshot metadata and character coverage report")
+    cli.add_argument("--stage",help="Write review-only characters (not approved for bot import)")
     args=cli.parse_args()
     if not args.fetch:
         cli.error("Add --fetch after checking the source usage terms.")
     print("Snapshot rows:",download_snapshot(args.output))
+    if args.report or args.stage:
+        from scripts.stage_character_offline import coverage_report, convert
+        if args.report:
+            source=json.loads(Path(args.output).read_text(encoding="utf-8"))
+            Path(args.report).write_text(json.dumps(coverage_report(source),ensure_ascii=False,indent=2)+"\\n",encoding="utf-8")
+            print("Measured coverage report:",args.report)
+        if args.stage:
+            print("Review-only records:",convert(args.output,args.stage))
