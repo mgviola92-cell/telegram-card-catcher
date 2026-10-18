@@ -19,6 +19,15 @@ CREATE TABLE IF NOT EXISTS group_settings (
   active_character_id BIGINT REFERENCES characters(id),
   last_spawn TIMESTAMPTZ
 );
+-- Activity dedup persists over webhook lease expiry and Render restarts.
+CREATE TABLE IF NOT EXISTS counted_messages (
+  chat_id BIGINT NOT NULL,
+  message_id BIGINT NOT NULL,
+  counted_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY(chat_id,message_id)
+);
+CREATE INDEX IF NOT EXISTS counted_messages_age ON counted_messages(counted_at);
+
 CREATE TABLE IF NOT EXISTS owned_cards (
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   code TEXT NOT NULL UNIQUE,
