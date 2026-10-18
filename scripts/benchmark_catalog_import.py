@@ -27,6 +27,7 @@ def benchmark(count=10000, batch_size=250):
     items=build_records(count)
     connection=MagicMock()
     cursor=MagicMock()
+    connection.__enter__.return_value=connection
     connection.cursor.return_value.__enter__.return_value=cursor
     start=perf_counter()
     with patch('scripts.import_characters.connect', return_value=connection):
