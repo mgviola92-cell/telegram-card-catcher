@@ -209,5 +209,27 @@
     ],
     "image_rights": "separate",
     "enabled_for_import": false
+  },
+  {
+    "source": "Anime Character Offline Database",
+    "role": "character_metadata",
+    "access": "versioned_json_snapshot",
+    "review": "odbl_dbcl_attribution_and_upstream_terms",
+    "urls": [
+      "https://github.com/arda-/anime-character-offline-database"
+    ],
+    "image_rights": "separate",
+    "enabled_for_import": false
+  },
+  {
+    "source": "Anime Metadata DB",
+    "role": "series_cross_reference",
+    "access": "repository_dataset",
+    "review": "data_license_and_coverage",
+    "urls": [
+      "https://github.com/michael-freling/anime-metadata-db"
+    ],
+    "image_rights": "separate",
+    "enabled_for_import": false
   }
 ]
