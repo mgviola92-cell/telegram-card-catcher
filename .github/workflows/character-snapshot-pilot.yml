@@ -4,6 +4,7 @@ on:
     branches: [feature/large-collection-batch]
     paths:
       - '.github/workflows/character-snapshot-pilot.yml'
+      - 'scripts/fetch_character_snapshot.py'
   workflow_dispatch:
 jobs:
   snapshot:
