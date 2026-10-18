@@ -216,7 +216,8 @@
     "access": "versioned_json_snapshot",
     "review": "odbl_dbcl_attribution_and_upstream_terms",
     "urls": [
-      "https://github.com/arda-/anime-character-offline-database"
+      "https://github.com/arda-/anime-character-offline-database",
+      "https://raw.githubusercontent.com/arda-/anime-character-offline-database/main/latest/characters.min.json"
     ],
     "image_rights": "separate",
     "enabled_for_import": false
@@ -240,6 +241,17 @@
     "urls": [
       "https://github.com/cedya77/anime-offline-database",
       "https://github.com/cedya77/anime-offline-database/releases/download/latest/anime-offline-database.jsonl"
+    ],
+    "image_rights": "separate",
+    "enabled_for_import": false
+  },
+  {
+    "source": "Anime Offline Database (ipkpjersi fork)",
+    "role": "series_cross_reference",
+    "access": "release_jsonl",
+    "review": "validate_current_maintainer_and_data_license",
+    "urls": [
+      "https://github.com/ipkpjersi/anime-offline-database"
     ],
     "image_rights": "separate",
     "enabled_for_import": false
