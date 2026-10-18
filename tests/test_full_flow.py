@@ -104,3 +104,14 @@ class FullFlowTests(unittest.TestCase):
                 VALUES (%s,701,702,'gift')""",(card_id,))
         result=economy.leaderboard(chat_id=self.chat)
         self.assertEqual(result[0]['owner_id'],701)
+
+
+    def test_favorite_toggle_after_gift_cannot_edit_old_owner(self):
+        with self.connect() as db:
+            db.execute("""INSERT INTO owned_cards(code,character_id,owner_id,generation)
+                VALUES ('FAVQA001',%s,701,1)""",(self.cids[0],))
+        self.assertTrue(storage.toggle_favorite(701,'FAVQA001')['favorite'])
+        self.assertFalse(storage.toggle_favorite(701,'FAVQA001')['favorite'])
+        self.assertTrue(economy.gift_card(701,702,'FAVQA001'))
+        self.assertIsNone(storage.toggle_favorite(701,'FAVQA001'))
+        self.assertTrue(storage.toggle_favorite(702,'FAVQA001')['favorite'])
