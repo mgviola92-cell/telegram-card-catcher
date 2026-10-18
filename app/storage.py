@@ -113,7 +113,7 @@ def clear_spawn(chat_id, character_id):
                    (chat_id,character_id))
 
 
-def claim(chat_id, user_id, guessed):
+def claim(chat_id, user_id, guessed, message_id=None):
     guessed = normalize_name(guessed)
     if not guessed or len(guessed)>120:
         return None
@@ -143,11 +143,22 @@ def claim(chat_id, user_id, guessed):
                     break
             else:
                 raise RuntimeError('Unable to allocate card code')
-            cur.execute("""INSERT INTO owned_cards(code,character_id,owner_id,catcher_id,generation,caught_chat_id,variant_id)
-                VALUES (%s,%s,%s,%s,%s,%s,%s)""", (code,char['id'],user_id,user_id,generation,chat_id,setting['active_variant_id']))
+            cur.execute("""INSERT INTO owned_cards(code,character_id,owner_id,catcher_id,generation,caught_chat_id,variant_id,caught_message_id)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s)""", (code,char['id'],user_id,user_id,generation,chat_id,setting['active_variant_id'],message_id))
             cur.execute('UPDATE group_settings SET active_character_id=NULL,active_variant_id=NULL WHERE chat_id=%s', (chat_id,))
             variant=cur.execute('SELECT label,rarity FROM character_variants WHERE id=%s', (setting['active_variant_id'],)).fetchone() if setting['active_variant_id'] else None
             return dict(char,code=code,generation=generation,variant_id=setting['active_variant_id'],variant_label=variant['label'] if variant else 'Original',rarity=variant['rarity'] if variant else char['rarity'])
+
+
+
+def message_already_caught(chat_id, message_id):
+    """Avoid counting a successfully caught message as fresh activity after retry."""
+    if message_id is None:
+        return False
+    with connect() as db:
+        return db.execute("""SELECT 1 FROM owned_cards
+            WHERE caught_chat_id=%s AND caught_message_id=%s""",
+            (chat_id,message_id)).fetchone() is not None
 
 
 def normalize_name(value):
