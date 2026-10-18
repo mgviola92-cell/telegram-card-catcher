@@ -12,6 +12,9 @@ from urllib.request import Request, build_opener, HTTPSHandler, HTTPRedirectHand
 from urllib.error import HTTPError, URLError
 from scripts.import_characters import validate
 
+MAX_IMAGE_BYTES=10*1024*1024  # conservative Telegram photo audit threshold
+PHOTO_TYPES={'image/jpeg','image/png','image/webp'}
+
 class NoRedirect(HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         return None
@@ -34,10 +37,16 @@ def check_one(url, opener=None):
     opener=opener or build_opener(NoRedirect(), HTTPSHandler(context=ssl.create_default_context()))
     try:
         with opener.open(Request(url,method='HEAD',headers={'User-Agent':'CardKoutArtAudit/1.0'}),timeout=8) as response:
-            kind=response.headers.get('Content-Type','').split(';')[0].lower()
+            kind=response.headers.get('Content-Type','').split(';')[0].strip().lower()
             if response.status!=200: return {'status':'http_error','http_status':response.status}
-            if not kind.startswith('image/'): return {'status':'not_image','content_type':kind}
-            return {'status':'ok','content_type':kind}
+            if kind not in PHOTO_TYPES: return {'status':'unsupported_image_type','content_type':kind}
+            length=response.headers.get('Content-Length')
+            if length is not None:
+                try: size=int(length)
+                except (ValueError,TypeError): return {'status':'invalid_content_length'}
+                if size<0: return {'status':'invalid_content_length'}
+                if size>MAX_IMAGE_BYTES: return {'status':'image_too_large','bytes':size}
+            return {'status':'ok','content_type':kind,'bytes':int(length) if length is not None else None}
     except HTTPError as exc:
         return {'status':'http_error','http_status':exc.code}
     except (URLError,TimeoutError,OSError):
