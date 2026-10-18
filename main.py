@@ -80,6 +80,35 @@ def harem(msg):
     bot.reply_to(msg,text,reply_markup=keyboard)
 
 
+@bot.message_handler(commands=['showcase'])
+def showcase(msg):
+    cards,total=storage.get_cards(msg.from_user.id,page=0,size=5)
+    if not cards:
+        bot.reply_to(msg,'🃏 Your harem is empty. Catch characters first!')
+        return
+    featured=next((c for c in cards if c['favorite']),cards[0])
+    caption=(f"🃏 COLLECTION SHOWCASE • {total} CARDS\n"
+             f"━━━━━━━━━━━━━━━━━━\n"
+             f"✨ {featured['name']} — {featured['series']}\n"
+             f"💎 {featured['rarity']} · Gen {featured['generation']}\n"
+             f"🆔 {featured['code']}\n\n"
+             "Recent catches:\n" +
+             '\n'.join(f"• {c['name']} · {c['code']}" for c in cards))
+    for source in (featured.get('telegram_file_id'),featured.get('image_url')):
+        if not source:
+            continue
+        try:
+            media=bot.send_photo(msg.chat.id,source,caption=caption)
+            if source==featured.get('image_url') and media.photo:
+                with storage.connect() as db:
+                    db.execute('UPDATE characters SET telegram_file_id=%s WHERE image_url=%s',
+                               (media.photo[-1].file_id,featured['image_url']))
+            return
+        except telebot.apihelper.ApiTelegramException:
+            logging.warning('Showcase artwork unavailable')
+    bot.reply_to(msg,caption)
+
+
 @bot.callback_query_handler(func=lambda q: q.data.startswith('harem:') or q.data=='noop')
 def turn_page(q):
     if q.data=='noop':
