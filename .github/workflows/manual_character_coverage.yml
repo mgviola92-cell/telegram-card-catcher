@@ -1,0 +1,35 @@
+name: Manual Character Dataset Coverage
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Fetch official review-only snapshot
+        run: |
+          mkdir -p audit-output
+          curl --fail --location --retry 2 --max-time 240 --output audit-output/characters.json \
+            https://raw.githubusercontent.com/arda-/anime-character-offline-database/main/latest/characters.min.json
+          test "$(stat -c%s audit-output/characters.json)" -le 150000000
+          sha256sum audit-output/characters.json > audit-output/SHA256SUMS.txt
+      - name: Audit without DB imports
+        run: |
+          python -m scripts.stage_character_offline audit-output/characters.json audit-output/staged.review.json \
+            --report audit-output/coverage.json
+          rm audit-output/characters.json audit-output/staged.review.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: character-metadata-coverage-review
+          path: |
+            audit-output/coverage.json
+            audit-output/SHA256SUMS.txt
+          retention-days: 7
