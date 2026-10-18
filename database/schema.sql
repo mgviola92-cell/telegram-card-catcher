@@ -29,8 +29,6 @@ CREATE TABLE IF NOT EXISTS owned_cards (
   favorite BOOLEAN NOT NULL DEFAULT FALSE
 );
 ALTER TABLE owned_cards ADD COLUMN IF NOT EXISTS caught_message_id BIGINT;
-CREATE UNIQUE INDEX IF NOT EXISTS owned_cards_caught_message_unique
-  ON owned_cards(caught_chat_id,caught_message_id) WHERE caught_chat_id IS NOT NULL AND caught_message_id IS NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS owned_cards_generation_unique ON owned_cards(character_id, generation);
 CREATE INDEX IF NOT EXISTS owned_cards_by_owner ON owned_cards (owner_id, obtained_at DESC, id DESC);
 CREATE INDEX IF NOT EXISTS owned_cards_by_character ON owned_cards (character_id, generation);
@@ -60,6 +58,8 @@ CREATE INDEX IF NOT EXISTS owned_cards_catcher ON owned_cards(catcher_id) WHERE 
 
 -- Catch attribution for per-group and daily leaderboards.
 ALTER TABLE owned_cards ADD COLUMN IF NOT EXISTS caught_chat_id BIGINT;
+CREATE UNIQUE INDEX IF NOT EXISTS owned_cards_caught_message_unique
+  ON owned_cards(caught_chat_id,caught_message_id) WHERE caught_chat_id IS NOT NULL AND caught_message_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS owned_cards_group_catches
   ON owned_cards(caught_chat_id, obtained_at DESC)
   WHERE caught_chat_id IS NOT NULL;
