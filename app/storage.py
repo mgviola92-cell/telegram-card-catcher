@@ -50,7 +50,7 @@ def try_spawn(chat_id, default_every):
                     (setting['last_spawn'],)).fetchone()['expired']
                 if not expired:
                     return None
-                cur.execute('UPDATE group_settings SET active_character_id=NULL WHERE chat_id=%s', (chat_id,))
+                cur.execute('UPDATE group_settings SET active_character_id=NULL,active_variant_id=NULL WHERE chat_id=%s', (chat_id,))
             count = setting['message_count'] + 1
             if count < setting['spawn_every']:
                 cur.execute('UPDATE group_settings SET message_count=%s WHERE chat_id=%s', (count,chat_id))
@@ -61,8 +61,22 @@ def try_spawn(chat_id, default_every):
             if char is None:
                 cur.execute('UPDATE group_settings SET message_count=0 WHERE chat_id=%s', (chat_id,))
                 return None
+            variant = cur.execute("""SELECT * FROM character_variants
+                WHERE character_id=%s AND enabled=true AND spawn_weight>0
+                ORDER BY -ln(greatest(random(),0.000001))/spawn_weight LIMIT 1""",
+                (char['id'],)).fetchone()
+            # Base character art remains a possible choice alongside variants.
+            import secrets as _secrets
+            if variant and _secrets.randbelow(100) < 25:
+                char = dict(char, image_url=variant['image_url'],
+                            telegram_file_id=variant['telegram_file_id'],
+                            rarity=variant['rarity'], variant_id=variant['id'],
+                            variant_label=variant['label'])
+            else:
+                char = dict(char,variant_id=None,variant_label='Original')
             cur.execute("""UPDATE group_settings SET message_count=0,active_character_id=%s,
-                last_spawn=now() WHERE chat_id=%s""", (char['id'],chat_id))
+                active_variant_id=%s,last_spawn=now() WHERE chat_id=%s""",
+                (char['id'],char['variant_id'],chat_id))
             return char
 
 
@@ -73,7 +87,7 @@ def cache_image(character_id, file_id):
 
 def clear_spawn(chat_id, character_id):
     with connect() as db:
-        db.execute('UPDATE group_settings SET active_character_id=NULL WHERE chat_id=%s AND active_character_id=%s',
+        db.execute('UPDATE group_settings SET active_character_id=NULL,active_variant_id=NULL WHERE chat_id=%s AND active_character_id=%s',
                    (chat_id,character_id))
 
 
@@ -83,7 +97,7 @@ def claim(chat_id, user_id, guessed):
         return None
     with connect() as db:
         with db.cursor() as cur:
-            setting = cur.execute("""SELECT active_character_id,last_spawn FROM group_settings
+            setting = cur.execute("""SELECT active_character_id,active_variant_id,last_spawn FROM group_settings
                 WHERE chat_id=%s FOR UPDATE""", (chat_id,)).fetchone()
             if not setting or not setting['active_character_id']:
                 return None
@@ -107,10 +121,10 @@ def claim(chat_id, user_id, guessed):
                     break
             else:
                 raise RuntimeError('Unable to allocate card code')
-            cur.execute("""INSERT INTO owned_cards(code,character_id,owner_id,generation,caught_chat_id)
-                VALUES (%s,%s,%s,%s,%s)""", (code,char['id'],user_id,generation,chat_id))
+            cur.execute("""INSERT INTO owned_cards(code,character_id,owner_id,generation,caught_chat_id,variant_id)
+                VALUES (%s,%s,%s,%s,%s,%s)""", (code,char['id'],user_id,generation,chat_id,setting['active_variant_id']))
             cur.execute('UPDATE group_settings SET active_character_id=NULL WHERE chat_id=%s', (chat_id,))
-            return dict(char,code=code,generation=generation)
+            return dict(char,code=code,generation=generation,variant_id=setting['active_variant_id'])
 
 
 def normalize_name(value):
