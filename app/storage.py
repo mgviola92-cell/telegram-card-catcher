@@ -39,12 +39,18 @@ def get_card(code):
             (code.upper(),)).fetchone()
 
 
-def try_spawn(chat_id, default_every):
+def try_spawn(chat_id, default_every, message_id=None):
     with connect() as db:
         with db.cursor() as cur:
             cur.execute("""INSERT INTO group_settings(chat_id,spawn_every) VALUES (%s,%s)
                 ON CONFLICT (chat_id) DO NOTHING""", (chat_id,default_every))
             setting = cur.execute('SELECT * FROM group_settings WHERE chat_id=%s FOR UPDATE', (chat_id,)).fetchone()
+            if message_id is not None:
+                new_activity=cur.execute("""INSERT INTO counted_messages(chat_id,message_id)
+                    VALUES (%s,%s) ON CONFLICT DO NOTHING RETURNING message_id""",
+                    (chat_id,message_id)).fetchone()
+                if not new_activity:
+                    return None
             if setting['active_character_id'] is not None:
                 # A dropped spawn must not permanently block the group.
                 expired = cur.execute("""SELECT COALESCE(%s < now()-interval '15 minutes',true) AS expired""",
