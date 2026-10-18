@@ -386,11 +386,19 @@ def webhook(secret):
     try:
         update=types.Update.de_json(data)
         bot.process_new_updates([update])
-        if not complete_update(data['update_id'],lease_token):
-            logging.warning('Webhook lease expired before completion: %s',data['update_id'])
-            abort(503)
     except Exception:
         logging.exception('Telegram update %s failed; allowing retry',data['update_id'])
-        release_failed_update(data['update_id'],lease_token)
+        try:
+            release_failed_update(data['update_id'],lease_token)
+        except Exception:
+            logging.exception('Failed to release webhook lease; it will expire automatically')
+        abort(503)
+    try:
+        completed=complete_update(data['update_id'],lease_token)
+    except Exception:
+        logging.exception('Could not record webhook completion: %s',data['update_id'])
+        abort(503)
+    if not completed:
+        logging.warning('Webhook lease no longer owned: %s',data['update_id'])
         abort(503)
     return 'OK',200
