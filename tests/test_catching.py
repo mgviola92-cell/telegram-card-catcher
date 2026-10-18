@@ -25,3 +25,14 @@ class CatchingTests(unittest.TestCase):
         card=dict(name='Demo',series='Series',rarity='Rare',generation=1,code='ABC')
         result=catch_result(card,SimpleNamespace(first_name='Tester'))
         self.assertNotIn('Your collection:',result)
+
+    def test_variant_artwork_name_is_shown(self):
+        card=dict(name='Demo',series='Series',rarity='Rare',generation=1,
+                  code='ABC',variant_label='Festival Edition')
+        self.assertIn('Artwork: Festival Edition',
+                      catch_result(card,SimpleNamespace(first_name='Tester')))
+
+    def test_original_artwork_does_not_add_extra_line(self):
+        card=dict(name='Demo',series='Series',rarity='Rare',generation=1,
+                  code='ABC',variant_label='Original')
+        self.assertNotIn('Artwork:',catch_result(card,SimpleNamespace(first_name='Tester')))
