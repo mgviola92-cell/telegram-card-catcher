@@ -34,7 +34,7 @@ def get_cards(user_id, page=0, size=8):
 
 def get_card(code):
     with connect() as db:
-        return db.execute("""SELECT o.code,o.character_id,o.variant_id,o.generation,o.owner_id,c.name,c.series,COALESCE(v.rarity,c.rarity) AS rarity,COALESCE(v.image_url,c.image_url) AS image_url,COALESCE(v.telegram_file_id,c.telegram_file_id) AS telegram_file_id
+        return db.execute("""SELECT o.code,o.character_id,o.variant_id,o.generation,o.owner_id,o.favorite,c.name,c.series,COALESCE(v.rarity,c.rarity) AS rarity,COALESCE(v.image_url,c.image_url) AS image_url,CASE WHEN o.variant_id IS NULL THEN c.telegram_file_id ELSE v.telegram_file_id END AS telegram_file_id
             FROM owned_cards o JOIN characters c ON c.id=o.character_id LEFT JOIN character_variants v ON v.id=o.variant_id WHERE o.code=%s""",
             (code.upper(),)).fetchone()
 
