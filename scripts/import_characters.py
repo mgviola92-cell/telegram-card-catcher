@@ -64,19 +64,23 @@ def validate(items):
     return validated
 
 
-def import_batch(items):
+def import_batch(items, batch_size=250):
+    """Upsert bounded batches in one transaction; rollback all on failure."""
     rows=validate(items)
+    if type(batch_size) is not int or not 1<=batch_size<=1000:
+        raise ValueError('batch_size must be an integer from 1 to 1000')
+    query="""INSERT INTO characters(source_key,name,series,aliases,category,rarity,image_url,weight)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
+        ON CONFLICT (source_key) WHERE source_key IS NOT NULL DO UPDATE
+        SET name=EXCLUDED.name, series=EXCLUDED.series, aliases=EXCLUDED.aliases,
+            category=EXCLUDED.category, rarity=EXCLUDED.rarity,
+            image_url=EXCLUDED.image_url, weight=EXCLUDED.weight,
+            telegram_file_id=CASE WHEN characters.image_url IS DISTINCT FROM EXCLUDED.image_url
+                THEN NULL ELSE characters.telegram_file_id END"""
     with connect() as db:
-        for key,name,series,aliases,category,rarity,url,weight in rows:
-            db.execute("""INSERT INTO characters(source_key,name,series,aliases,category,rarity,image_url,weight)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
-                ON CONFLICT (source_key) WHERE source_key IS NOT NULL DO UPDATE
-                SET name=EXCLUDED.name, series=EXCLUDED.series, aliases=EXCLUDED.aliases,
-                    category=EXCLUDED.category, rarity=EXCLUDED.rarity,
-                    image_url=EXCLUDED.image_url, weight=EXCLUDED.weight,
-                    telegram_file_id=CASE WHEN characters.image_url IS DISTINCT FROM EXCLUDED.image_url
-                        THEN NULL ELSE characters.telegram_file_id END""",
-                (key,name,series,aliases,category,rarity,url,weight))
+        with db.cursor() as cur:
+            for start in range(0,len(rows),batch_size):
+                cur.executemany(query,rows[start:start+batch_size])
     return len(rows)
 
 
