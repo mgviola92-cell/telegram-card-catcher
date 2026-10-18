@@ -76,3 +76,20 @@ class MediaDeliveryTests(unittest.TestCase):
         self.assertIsNone(send_photo(bot,store,123,ART))
         bot.send_photo.assert_called_once()
         store.clear_cached_image.assert_not_called()
+
+    def test_none_response_does_not_count_as_delivered(self):
+        bot=Mock()
+        bot.send_photo.return_value=None
+        storage=Mock()
+        self.assertIsNone(send_photo(bot,storage,123,ART))
+        bot.send_photo.assert_called_once()
+        storage.cache_image.assert_not_called()
+        storage.clear_cached_image.assert_not_called()
+
+    def test_missing_photo_field_does_not_crash_or_cache(self):
+        bot=Mock()
+        storage=Mock()
+        bot.send_photo.return_value=SimpleNamespace(message_id=123)
+        art={'character_id':42,'image_url':'https://example.org/art.jpg'}
+        self.assertIsNotNone(send_photo(bot,storage,123,art))
+        storage.cache_image.assert_not_called()
