@@ -4,10 +4,11 @@
     "name": "Naruto Uzumaki",
     "series": "Naruto",
     "category": "anime",
-    "metadata_status": "awaiting_source_verification",
+    "metadata_status": "source_verified",
     "artwork_status": "awaiting_permission_review",
     "image_url": null,
-    "source_key": null
+    "source_key": "wikidata:Q931",
+    "metadata_source_url": "https://www.wikidata.org/wiki/Q931"
   },
   {
     "candidate_id": "manual-review-002",
@@ -34,10 +35,11 @@
     "name": "Monkey D. Luffy",
     "series": "One Piece",
     "category": "anime",
-    "metadata_status": "awaiting_source_verification",
+    "metadata_status": "source_verified",
     "artwork_status": "awaiting_permission_review",
     "image_url": null,
-    "source_key": null
+    "source_key": "wikidata:Q477948",
+    "metadata_source_url": "https://www.wikidata.org/wiki/Q477948"
   },
   {
     "candidate_id": "manual-review-005",
