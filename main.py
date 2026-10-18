@@ -20,8 +20,7 @@ storage.initialize()
 
 def collection_text(user_id, page):
     cards,total = storage.get_cards(user_id,page,size=collection_ui.PAGE_SIZE)
-    pages = max(1,(total+collection_ui.PAGE_SIZE-1)//collection_ui.PAGE_SIZE)
-    page = min(max(0,page),pages-1)
+    page = collection_ui.normalized_page(page,total)
     if page*collection_ui.PAGE_SIZE>=total and total:
         cards,total = storage.get_cards(user_id,page,size=collection_ui.PAGE_SIZE)
     if not cards:
@@ -106,7 +105,11 @@ def turn_page(q):
         if page<0 or page>99999:
             raise ValueError
         text,keyboard = collection_text(q.from_user.id,page)
-        bot.edit_message_text(text,q.message.chat.id,q.message.message_id,reply_markup=keyboard)
+        try:
+            bot.edit_message_text(text,q.message.chat.id,q.message.message_id,reply_markup=keyboard)
+        except telebot.apihelper.ApiTelegramException as exc:
+            if 'message is not modified' not in str(exc).lower():
+                raise
         bot.answer_callback_query(q.id)
     except (ValueError,TypeError):
         bot.answer_callback_query(q.id,'Invalid page.')
