@@ -132,10 +132,16 @@ def clear_cached_image(character_id, variant_id, expected_file_id):
                 (character_id, expected_file_id))
 
 
-def clear_spawn(chat_id, character_id):
+def clear_spawn(chat_id, character_id, last_spawn):
+    """Only clear the exact failed appearance, not a later spawn of the same card."""
+    if last_spawn is None:
+        return False
     with connect() as db:
-        db.execute('UPDATE group_settings SET active_character_id=NULL,active_variant_id=NULL WHERE chat_id=%s AND active_character_id=%s',
-                   (chat_id,character_id))
+        row=db.execute("""UPDATE group_settings
+            SET active_character_id=NULL,active_variant_id=NULL
+            WHERE chat_id=%s AND active_character_id=%s AND last_spawn=%s
+            RETURNING chat_id""",(chat_id,character_id,last_spawn)).fetchone()
+        return bool(row)
 
 
 def claim(chat_id, user_id, guessed, message_id=None):
