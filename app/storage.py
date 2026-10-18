@@ -107,8 +107,8 @@ def claim(chat_id, user_id, guessed):
                     break
             else:
                 raise RuntimeError('Unable to allocate card code')
-            cur.execute("""INSERT INTO owned_cards(code,character_id,owner_id,generation)
-                VALUES (%s,%s,%s,%s)""", (code,char['id'],user_id,generation))
+            cur.execute("""INSERT INTO owned_cards(code,character_id,owner_id,generation,caught_chat_id)
+                VALUES (%s,%s,%s,%s,%s)""", (code,char['id'],user_id,generation,chat_id))
             cur.execute('UPDATE group_settings SET active_character_id=NULL WHERE chat_id=%s', (chat_id,))
             return dict(char,code=code,generation=generation)
 
