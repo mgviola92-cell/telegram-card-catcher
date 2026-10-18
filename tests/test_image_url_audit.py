@@ -30,3 +30,30 @@ class ImageUrlAuditTests(unittest.TestCase):
         result=audit(records,checker=lambda url:{'status':'ok'})
         self.assertEqual(result['checked'],1)
         with self.assertRaises(ValueError):audit(records,limit=101)
+
+    @patch('scripts.image_url_audit.public_url',return_value=True)
+    def test_oversized_image_header_rejected(self,_):
+        class Opener:
+            def open(self,*args,**kwargs):
+                response=DummyResponse()
+                response.headers={'Content-Type':'image/jpeg','Content-Length':'11000000'}
+                return response
+        self.assertEqual(check_one('https://images.example.org/a.jpg',Opener())['status'],'image_too_large')
+
+    @patch('scripts.image_url_audit.public_url',return_value=True)
+    def test_unsupported_image_type_rejected(self,_):
+        class Opener:
+            def open(self,*args,**kwargs):
+                response=DummyResponse()
+                response.headers={'Content-Type':'image/svg+xml'}
+                return response
+        self.assertEqual(check_one('https://images.example.org/a.svg',Opener())['status'],'unsupported_image_type')
+
+    @patch('scripts.image_url_audit.public_url',return_value=True)
+    def test_invalid_content_length_rejected(self,_):
+        class Opener:
+            def open(self,*args,**kwargs):
+                response=DummyResponse()
+                response.headers={'Content-Type':'image/png','Content-Length':'unknown'}
+                return response
+        self.assertEqual(check_one('https://images.example.org/a.png',Opener())['status'],'invalid_content_length')
