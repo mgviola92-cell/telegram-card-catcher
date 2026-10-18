@@ -343,7 +343,9 @@ def catch_command(msg):
     if not name:
         bot.reply_to(msg,'Usage: /catch CHARACTER NAME')
         return
-    caught=storage.claim(msg.chat.id,msg.from_user.id,name)
+    if storage.message_already_caught(msg.chat.id,msg.message_id):
+        return
+    caught=storage.claim(msg.chat.id,msg.from_user.id,name,msg.message_id)
     if caught:
         bot.reply_to(msg,catching.catch_result(caught,msg.from_user))
 
@@ -352,7 +354,9 @@ def catch_command(msg):
 def activity(msg):
     if msg.from_user.is_bot:
         return
-    caught=storage.claim(msg.chat.id,msg.from_user.id,catching.catch_name(msg.text))
+    if storage.message_already_caught(msg.chat.id,msg.message_id):
+        return
+    caught=storage.claim(msg.chat.id,msg.from_user.id,catching.catch_name(msg.text),msg.message_id)
     if caught:
         bot.reply_to(msg,catching.catch_result(caught,msg.from_user))
         return
