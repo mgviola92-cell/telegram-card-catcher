@@ -23,14 +23,18 @@ def send_photo(bot, storage, chat_id, art, **kwargs):
             if source==cached and not _stale_file_id(exc):
                 logging.warning('Telegram sendPhoto failed without invalidating file_id: %s',exc)
                 return None
-            logging.warning('Telegram rejected artwork source; trying fallback')
+            logging.warning('Telegram rejected artwork source; evaluating safe fallback')
             if source==cached:
                 try:
                     storage.clear_cached_image(art['character_id'],art.get('variant_id'),cached)
                 except Exception:
                     logging.exception('Stale image cache cleanup failed')
+            # A failed HTTPS URL has no alternative. Do not retry blindly.
             continue
-        if source==url and message.photo:
+        if message is None:
+            logging.warning('Telegram sendPhoto returned no message; do not cache artwork')
+            return None
+        if source==url and getattr(message,'photo',None):
             try:
                 storage.cache_image(art['character_id'],message.photo[-1].file_id,
                                     art.get('variant_id'),url)
