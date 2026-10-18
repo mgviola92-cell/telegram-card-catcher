@@ -5,7 +5,7 @@ from flask import Flask, abort, request
 import telebot
 from telebot import types
 from app import storage
-from app.webhook_guard import begin_update, release_failed_update
+from app.webhook_guard import begin_update, complete_update, release_failed_update
 from app import welcome
 from app import economy, trading, collection_ui, media_delivery, catching
 
@@ -374,11 +374,15 @@ def webhook(secret):
         abort(400)
     if not isinstance(data['update_id'], int):
         abort(400)
-    if not begin_update(data['update_id']):
+    state=begin_update(data['update_id'])
+    if state=='done':
         return 'OK',200
+    if state!='acquired':
+        abort(503)
     try:
         update=types.Update.de_json(data)
         bot.process_new_updates([update])
+        complete_update(data['update_id'])
     except Exception:
         logging.exception('Telegram update %s failed; allowing retry',data['update_id'])
         release_failed_update(data['update_id'])
