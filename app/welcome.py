@@ -23,6 +23,7 @@ COMMANDS_TEXT = (
     "/harem — Global Collection ကြည့်ရန်\n"
     "/collection — Collection ကြည့်ရန်\n"
     "/recent — Recent Cards ကြည့်ရန်\n"
+    "/showcase — Artwork ပါတဲ့ Collection Preview\n"
     "/check CODE — Card အချက်အလက်ကြည့်ရန်\n"
     "/view CODE — Card အချက်အလက်ကြည့်ရန်\n\n"
     "⭐ 𝗙𝗔𝗩𝗢𝗥𝗜𝗧𝗘𝗦\n"
