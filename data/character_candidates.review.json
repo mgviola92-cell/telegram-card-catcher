@@ -1,0 +1,82 @@
+[
+  {
+    "candidate_id": "manual-review-001",
+    "name": "Naruto Uzumaki",
+    "series": "Naruto",
+    "category": "anime",
+    "metadata_status": "awaiting_source_verification",
+    "artwork_status": "awaiting_permission_review",
+    "image_url": null,
+    "source_key": null
+  },
+  {
+    "candidate_id": "manual-review-002",
+    "name": "Sasuke Uchiha",
+    "series": "Naruto",
+    "category": "anime",
+    "metadata_status": "awaiting_source_verification",
+    "artwork_status": "awaiting_permission_review",
+    "image_url": null,
+    "source_key": null
+  },
+  {
+    "candidate_id": "manual-review-003",
+    "name": "Sakura Haruno",
+    "series": "Naruto",
+    "category": "anime",
+    "metadata_status": "awaiting_source_verification",
+    "artwork_status": "awaiting_permission_review",
+    "image_url": null,
+    "source_key": null
+  },
+  {
+    "candidate_id": "manual-review-004",
+    "name": "Monkey D. Luffy",
+    "series": "One Piece",
+    "category": "anime",
+    "metadata_status": "awaiting_source_verification",
+    "artwork_status": "awaiting_permission_review",
+    "image_url": null,
+    "source_key": null
+  },
+  {
+    "candidate_id": "manual-review-005",
+    "name": "Roronoa Zoro",
+    "series": "One Piece",
+    "category": "anime",
+    "metadata_status": "awaiting_source_verification",
+    "artwork_status": "awaiting_permission_review",
+    "image_url": null,
+    "source_key": null
+  },
+  {
+    "candidate_id": "manual-review-006",
+    "name": "Nami",
+    "series": "One Piece",
+    "category": "anime",
+    "metadata_status": "awaiting_source_verification",
+    "artwork_status": "awaiting_permission_review",
+    "image_url": null,
+    "source_key": null
+  },
+  {
+    "candidate_id": "manual-review-007",
+    "name": "Son Goku",
+    "series": "Dragon Ball",
+    "category": "anime",
+    "metadata_status": "awaiting_source_verification",
+    "artwork_status": "awaiting_permission_review",
+    "image_url": null,
+    "source_key": null
+  },
+  {
+    "candidate_id": "manual-review-008",
+    "name": "Vegeta",
+    "series": "Dragon Ball",
+    "category": "anime",
+    "metadata_status": "awaiting_source_verification",
+    "artwork_status": "awaiting_permission_review",
+    "image_url": null,
+    "source_key": null
+  }
+]
