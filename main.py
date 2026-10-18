@@ -124,7 +124,15 @@ def browse_card(q):
             if not 0<=page<=99999:
                 raise ValueError
             txt,kb=collection_text(q.from_user.id,page)
-            bot.send_message(q.message.chat.id,txt,reply_markup=kb)
+            if q.message.content_type=='text':
+                bot.edit_message_text(txt,q.message.chat.id,q.message.message_id,reply_markup=kb)
+            else:
+                bot.send_message(q.message.chat.id,txt,reply_markup=kb)
+                # Remove the old bot photo so Back does not clutter the group.
+                try:
+                    bot.delete_message(q.message.chat.id,q.message.message_id)
+                except telebot.apihelper.ApiTelegramException:
+                    logging.info('Could not delete previous card photo')
         else:
             if len(rest)!=1:
                 raise ValueError
@@ -136,8 +144,11 @@ def browse_card(q):
                 bot.answer_callback_query(q.id,'Card no longer in your collection.',show_alert=True)
                 return
             if action=='cardfav':
-                storage.set_favorites(q.from_user.id,[value],not card['favorite'])
-                card=storage.get_card(value)
+                changed=storage.toggle_favorite(q.from_user.id,value)
+                if not changed:
+                    bot.answer_callback_query(q.id,'Card no longer in your collection.',show_alert=True)
+                    return
+                card=dict(card,favorite=changed['favorite'])
             caption=collection_ui.card_caption(card)
             keyboard=collection_ui.card_markup(q.from_user.id,value,page,card['favorite'])
             # Favorite action updates the same card; do not repost photos.
