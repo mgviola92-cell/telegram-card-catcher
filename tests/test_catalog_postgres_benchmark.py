@@ -24,3 +24,11 @@ class PostgresCatalogBenchmarkTests(unittest.TestCase):
         self.assertEqual(result['mode'],'disposable_postgres')
         self.assertEqual(result['records'],51)
         self.assertEqual(result['batches'],3)
+
+    def test_larger_real_import_and_cleanup(self):
+        if not safe_test_database_url():
+            self.skipTest('Disposable PostgreSQL not configured')
+        result=benchmark(records=1000,batch_size=250)
+        self.assertEqual(result['records'],1000)
+        self.assertEqual(result['batches'],4)
+        self.assertGreater(result['seconds'],0)
