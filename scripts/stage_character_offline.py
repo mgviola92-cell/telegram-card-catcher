@@ -16,6 +16,8 @@ def stage(snapshot):
         ident=item.get('mal_id')
         name=item.get('name')
         appearances=item.get('animeAppearances') or []
+        if not isinstance(appearances,list):
+            continue
         if type(ident) is not int or ident<1 or not isinstance(name,str) or not name.strip():
             continue
         titles=[]
@@ -29,7 +31,10 @@ def stage(snapshot):
         if not titles:
             continue
         key=f'mal:character:{ident}'
-        aliases=[x.strip() for x in (item.get('nicknames') or [])
+        nicknames=item.get('nicknames') or []
+        if not isinstance(nicknames,list):
+            nicknames=[]
+        aliases=[x.strip() for x in nicknames
                  if isinstance(x,str) and x.strip() and len(x.strip())<=120][:20]
         found[key]={'source_key':key,'name':name.strip()[:150],
                     'series':titles[0][:150],'additional_series':titles[1:],
