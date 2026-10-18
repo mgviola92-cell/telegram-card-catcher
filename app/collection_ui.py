@@ -32,3 +32,8 @@ def card_caption(card):
             f"💎 {card['rarity']} · Gen {card['generation']}\n"
             f"🆔 {card['code']}\n"
             f"{'⭐ Favorite' if card['favorite'] else '✦ Collected'}")
+
+def normalized_page(requested, total):
+    """Keep page inside the current collection even after gifts/trades."""
+    pages=max(1,(total+PAGE_SIZE-1)//PAGE_SIZE)
+    return min(max(0,int(requested)),pages-1)
