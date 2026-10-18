@@ -83,12 +83,14 @@ def try_spawn(chat_id, default_every, message_id=None):
                 return None
             # Weighted selection; no image downloads or SQL random sort per row.
             char = cur.execute("""SELECT * FROM characters WHERE enabled=true AND weight>0
+                AND (NULLIF(btrim(telegram_file_id),'') IS NOT NULL OR image_url LIKE 'https://%')
                 ORDER BY -ln(greatest(random(),0.000001))/weight LIMIT 1""").fetchone()
             if char is None:
                 cur.execute('UPDATE group_settings SET message_count=0 WHERE chat_id=%s', (chat_id,))
                 return None
             variant = cur.execute("""SELECT * FROM character_variants
                 WHERE character_id=%s AND enabled=true AND spawn_weight>0
+                AND (NULLIF(btrim(telegram_file_id),'') IS NOT NULL OR image_url LIKE 'https://%')
                 ORDER BY -ln(greatest(random(),0.000001))/spawn_weight LIMIT 1""",
                 (char['id'],)).fetchone()
             # Base character art remains a possible choice alongside variants.
