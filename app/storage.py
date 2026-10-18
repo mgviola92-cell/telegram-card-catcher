@@ -24,7 +24,7 @@ def get_cards(user_id, page=0, size=8):
     page = max(0, min(int(page), 99999))
     with connect() as db:
         total = db.execute('SELECT count(*) AS n FROM owned_cards WHERE owner_id=%s', (user_id,)).fetchone()['n']
-        cards = db.execute("""SELECT o.code,o.character_id,o.variant_id,o.generation,o.favorite,c.name,c.series,COALESCE(v.rarity,c.rarity) AS rarity,CASE WHEN o.variant_id IS NULL THEN c.telegram_file_id ELSE v.telegram_file_id END AS telegram_file_id,CASE WHEN o.variant_id IS NULL THEN c.image_url ELSE v.image_url END AS image_url
+        cards = db.execute("""SELECT o.code,o.character_id,o.variant_id,o.generation,o.favorite,c.name,c.series,COUNT(*) OVER (PARTITION BY o.character_id) AS owned_copies,COALESCE(v.rarity,c.rarity) AS rarity,CASE WHEN o.variant_id IS NULL THEN c.telegram_file_id ELSE v.telegram_file_id END AS telegram_file_id,CASE WHEN o.variant_id IS NULL THEN c.image_url ELSE v.image_url END AS image_url
             FROM owned_cards o JOIN characters c ON c.id=o.character_id
             LEFT JOIN character_variants v ON v.id=o.variant_id
             WHERE o.owner_id=%s ORDER BY o.obtained_at DESC,o.id DESC
