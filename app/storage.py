@@ -24,7 +24,7 @@ def get_cards(user_id, page=0, size=8):
     page = max(0, min(int(page), 99999))
     with connect() as db:
         total = db.execute('SELECT count(*) AS n FROM owned_cards WHERE owner_id=%s', (user_id,)).fetchone()['n']
-        cards = db.execute("""SELECT o.code,o.generation,o.favorite,c.name,c.series,COALESCE(v.rarity,c.rarity) AS rarity,COALESCE(v.telegram_file_id,c.telegram_file_id) AS telegram_file_id,COALESCE(v.image_url,c.image_url) AS image_url
+        cards = db.execute("""SELECT o.code,o.character_id,o.variant_id,o.generation,o.favorite,c.name,c.series,COALESCE(v.rarity,c.rarity) AS rarity,CASE WHEN o.variant_id IS NULL THEN c.telegram_file_id ELSE v.telegram_file_id END AS telegram_file_id,CASE WHEN o.variant_id IS NULL THEN c.image_url ELSE v.image_url END AS image_url
             FROM owned_cards o JOIN characters c ON c.id=o.character_id
             LEFT JOIN character_variants v ON v.id=o.variant_id
             WHERE o.owner_id=%s ORDER BY o.obtained_at DESC,o.id DESC
@@ -34,7 +34,7 @@ def get_cards(user_id, page=0, size=8):
 
 def get_card(code):
     with connect() as db:
-        return db.execute("""SELECT o.code,o.generation,o.owner_id,c.name,c.series,COALESCE(v.rarity,c.rarity) AS rarity,COALESCE(v.image_url,c.image_url) AS image_url,COALESCE(v.telegram_file_id,c.telegram_file_id) AS telegram_file_id
+        return db.execute("""SELECT o.code,o.character_id,o.variant_id,o.generation,o.owner_id,c.name,c.series,COALESCE(v.rarity,c.rarity) AS rarity,COALESCE(v.image_url,c.image_url) AS image_url,COALESCE(v.telegram_file_id,c.telegram_file_id) AS telegram_file_id
             FROM owned_cards o JOIN characters c ON c.id=o.character_id LEFT JOIN character_variants v ON v.id=o.variant_id WHERE o.code=%s""",
             (code.upper(),)).fetchone()
 
@@ -67,8 +67,7 @@ def try_spawn(chat_id, default_every):
                 ORDER BY -ln(greatest(random(),0.000001))/spawn_weight LIMIT 1""",
                 (char['id'],)).fetchone()
             # Base character art remains a possible choice alongside variants.
-            import secrets as _secrets
-            if variant and _secrets.randbelow(100) < 25:
+            if variant and secrets.randbelow(100) < 25:
                 char = dict(char, image_url=variant['image_url'],
                             telegram_file_id=variant['telegram_file_id'],
                             rarity=variant['rarity'], variant_id=variant['id'],
@@ -81,9 +80,18 @@ def try_spawn(chat_id, default_every):
             return char
 
 
-def cache_image(character_id, file_id):
+def cache_image(character_id, file_id, variant_id=None, expected_url=None):
+    """Cache a Telegram photo against the exact art identity and source URL."""
     with connect() as db:
-        db.execute('UPDATE characters SET telegram_file_id=%s WHERE id=%s', (file_id,character_id))
+        if variant_id is not None:
+            result = db.execute("""UPDATE character_variants SET telegram_file_id=%s
+              WHERE id=%s AND character_id=%s AND image_url=%s RETURNING id""",
+              (file_id, variant_id, character_id, expected_url)).fetchone()
+        else:
+            result = db.execute("""UPDATE characters SET telegram_file_id=%s
+              WHERE id=%s AND image_url=%s RETURNING id""",
+              (file_id, character_id, expected_url)).fetchone()
+        return bool(result)
 
 
 def clear_spawn(chat_id, character_id):
