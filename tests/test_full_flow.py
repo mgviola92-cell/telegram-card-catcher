@@ -77,3 +77,27 @@ class FullFlowTests(unittest.TestCase):
             audit=db.execute("""SELECT count(*) AS n FROM card_transfers
                WHERE from_user_id IN (701,702) AND reason='trade'""").fetchone()
             self.assertEqual(audit['n'],2)
+
+
+    def test_catch_ranking_survives_gift(self):
+        with self.connect() as db:
+            db.execute('UPDATE characters SET enabled=false WHERE id=ANY(%s)',(self.cids[1:],))
+        spawned=storage.try_spawn(self.chat,1)
+        caught=storage.claim(self.chat,701,spawned['name'])
+        self.assertEqual(economy.leaderboard(chat_id=self.chat)[0]['owner_id'],701)
+        self.assertTrue(economy.gift_card(701,702,caught['code']))
+        self.assertEqual(storage.get_card(caught['code'])['owner_id'],702)
+        self.assertEqual(economy.leaderboard(chat_id=self.chat)[0]['owner_id'],701)
+        self.assertEqual(economy.leaderboard(today=True)[0]['owner_id'],701)
+
+    def test_legacy_transferred_card_ranked_by_first_sender(self):
+        with self.connect() as db:
+            db.execute("""INSERT INTO owned_cards
+                (code,character_id,owner_id,generation,caught_chat_id)
+                VALUES ('LEGACYQA',%s,702,1,%s)""",(self.cids[0],self.chat))
+            card_id=db.execute("SELECT id FROM owned_cards WHERE code='LEGACYQA'").fetchone()['id']
+            db.execute("""INSERT INTO card_transfers
+                (card_id,from_user_id,to_user_id,reason)
+                VALUES (%s,701,702,'gift')""",(card_id,))
+        result=economy.leaderboard(chat_id=self.chat)
+        self.assertEqual(result[0]['owner_id'],701)
