@@ -59,6 +59,7 @@ class FullFlowTests(unittest.TestCase):
         cards,total=storage.get_cards(701)
         self.assertEqual(total,1)
         self.assertEqual(cards[0]['code'],caught['code'])
+        self.assertEqual(caught['collection_total'],total)
         self.assertTrue(economy.gift_card(701,702,caught['code']))
         self.assertEqual(storage.get_cards(701)[1],0)
         self.assertEqual(storage.get_cards(702)[1],1)
