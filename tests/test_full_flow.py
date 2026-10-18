@@ -115,3 +115,20 @@ class FullFlowTests(unittest.TestCase):
         self.assertTrue(economy.gift_card(701,702,'FAVQA001'))
         self.assertIsNone(storage.toggle_favorite(701,'FAVQA001'))
         self.assertTrue(storage.toggle_favorite(702,'FAVQA001')['favorite'])
+
+    def test_expired_spawn_clears_character_and_variant(self):
+        with self.connect() as db:
+            variant=db.execute("""INSERT INTO character_variants
+                (character_id,variant_key,label,image_url)
+                VALUES (%s,'expiry-test','Expiry Test','https://example.org/variant.png')
+                RETURNING id""",(self.cids[0],)).fetchone()['id']
+            db.execute("""INSERT INTO group_settings
+                (chat_id,spawn_every,active_character_id,active_variant_id,last_spawn)
+                VALUES (%s,35,%s,%s,now()-interval '16 minutes')""",
+                (self.chat,self.cids[0],variant))
+        self.assertIsNone(storage.claim(self.chat,701,'QA Character 0'))
+        with self.connect() as db:
+            row=db.execute("""SELECT active_character_id,active_variant_id
+                FROM group_settings WHERE chat_id=%s""",(self.chat,)).fetchone()
+        self.assertIsNone(row['active_character_id'])
+        self.assertIsNone(row['active_variant_id'])
