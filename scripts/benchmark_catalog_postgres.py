@@ -25,6 +25,10 @@ def benchmark(records=1000, batch_size=250):
     url=safe_test_database_url()
     if not url:
         raise RuntimeError('TEST_DATABASE_URL is required')
+    # Prepare schema in the guarded disposable test database before timing.
+    with psycopg.connect(url) as setup:
+        with open('database/schema.sql',encoding='utf-8') as source:
+            setup.execute(source.read())
     prefix=f'benchmark:{uuid4().hex}:'
     data=build_records(records)
     for i, item in enumerate(data):
