@@ -358,7 +358,7 @@ def send_spawn(chat_id,char):
             dict(char,character_id=char['id']),caption=caption):
         return
     # Do not leave an uncatchable invisible card active.
-    storage.clear_spawn(chat_id,char['id'])
+    storage.clear_spawn(chat_id,char['id'],char['last_spawn'])
     logging.error('Spawn discarded: no usable image for character %s',char['id'])
 
 
