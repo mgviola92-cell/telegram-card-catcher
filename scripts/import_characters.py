@@ -89,7 +89,8 @@ if __name__=='__main__':
     parser.add_argument('json_file')
     parser.add_argument('--apply',action='store_true',help='Write to PostgreSQL; default only validates')
     parser.add_argument('--allow-warnings',action='store_true',help='Override catalog duplicate/unknown-series warnings after review')
-    parser.add_argument('--rights-reviewed',action='store_true',help='Confirm artwork usage permissions reviewed before import')
+    parser.add_argument('--rights-reviewed',action='store_true',help='Confirm human artwork review')
+    parser.add_argument('--approval-manifest',help='JSON list of individually approved source_key, image_url and permission_reference')
     args=parser.parse_args()
     with open(args.json_file,encoding='utf-8') as f:
         data=json.load(f)
@@ -99,8 +100,12 @@ if __name__=='__main__':
     rows=validate(data)
     print(f'Validated {len(rows)} character records.')
     if args.apply:
-        if not args.rights_reviewed:
-            parser.error('--apply requires --rights-reviewed after artwork permissions review')
+        if not args.rights_reviewed or not args.approval_manifest:
+            parser.error('--apply requires --rights-reviewed and --approval-manifest')
+        from scripts.artwork_approval import require_artwork_approval
+        with open(args.approval_manifest,encoding='utf-8') as approval_file:
+            manifest=json.load(approval_file)
+        require_artwork_approval(data,manifest)
         print('Characters imported:',import_batch(data))
     else:
         print('Dry run only. Review image rights, then use --apply to import.')
