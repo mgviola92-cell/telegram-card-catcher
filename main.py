@@ -7,7 +7,7 @@ from telebot import types
 from app import storage
 from app.webhook_guard import begin_update
 from app import welcome
-from app import economy, trading, collection_ui
+from app import economy, trading, collection_ui, media_delivery
 
 logging.basicConfig(level=logging.INFO)
 TOKEN = os.environ['BOT_TOKEN']
@@ -87,17 +87,8 @@ def showcase(msg):
              f"🆔 {featured['code']}\n\n"
              "Recent catches:\n" +
              '\n'.join(f"• {c['name']} · {c['code']}" for c in cards))
-    for source in (featured.get('telegram_file_id'),featured.get('image_url')):
-        if not source:
-            continue
-        try:
-            media=bot.send_photo(msg.chat.id,source,caption=caption)
-            if source==featured.get('image_url') and media.photo:
-                storage.cache_image(featured['character_id'],media.photo[-1].file_id,
-                                    featured['variant_id'],featured['image_url'])
-            return
-        except telebot.apihelper.ApiTelegramException:
-            logging.warning('Showcase artwork unavailable')
+    if media_delivery.send_photo(bot,storage,msg.chat.id,featured,caption=caption):
+        return
     bot.reply_to(msg,caption)
 
 
@@ -163,18 +154,8 @@ def browse_card(q):
                         raise
                 bot.answer_callback_query(q.id,'Favorite updated!')
                 return
-            for source in (card.get('telegram_file_id'),card.get('image_url')):
-                if not source:
-                    continue
-                try:
-                    photo=bot.send_photo(q.message.chat.id,source,caption=caption,reply_markup=keyboard)
-                    if photo.photo and source==card.get('image_url'):
-                        storage.cache_image(card['character_id'],photo.photo[-1].file_id,
-                                            card['variant_id'],card['image_url'])
-                    break
-                except telebot.apihelper.ApiTelegramException:
-                    logging.warning('Card browser image rejected by Telegram')
-            else:
+            if not media_delivery.send_photo(bot,storage,q.message.chat.id,card,
+                    caption=caption,reply_markup=keyboard):
                 bot.send_message(q.message.chat.id,caption,reply_markup=keyboard)
         bot.answer_callback_query(q.id)
     except (ValueError,TypeError,IndexError):
@@ -196,17 +177,8 @@ def check(msg):
              f"🆔 {row['code']}")
     # Request Telegram-hosted media first: zero Render image transfer.
     # Fall back to Telegram pulling public HTTPS source by URL.
-    for source in (row.get('telegram_file_id'),row.get('image_url')):
-        if not source:
-            continue
-        try:
-            media=bot.send_photo(msg.chat.id,source,caption=caption)
-            if media.photo and source==row.get('image_url'):
-                storage.cache_image(row['character_id'],media.photo[-1].file_id,
-                                    row['variant_id'],row['image_url'])
-            return
-        except telebot.apihelper.ApiTelegramException:
-            logging.warning('Telegram rejected /check image source')
+    if media_delivery.send_photo(bot,storage,msg.chat.id,row,caption=caption):
+        return
     bot.reply_to(msg,caption)
 
 
@@ -341,16 +313,9 @@ def changetime(msg):
 
 def send_spawn(chat_id,char):
     caption=f"✨ A character appeared!\nSeries: {char['series']} · {char['rarity']}\nGuess the name!"
-    sources=[char.get('telegram_file_id'),char.get('image_url')]
-    for source in filter(None,sources):
-        try:
-            message=bot.send_photo(chat_id,source,caption=caption)
-            if message.photo and source == char.get('image_url'):
-                storage.cache_image(char['id'],message.photo[-1].file_id,
-                                    char.get('variant_id'),char['image_url'])
-            return
-        except Exception:
-            logging.exception('Spawn image source failed')
+    if media_delivery.send_photo(bot,storage,chat_id,
+            dict(char,character_id=char['id']),caption=caption):
+        return
     # Do not leave an uncatchable invisible card active.
     storage.clear_spawn(chat_id,char['id'])
     logging.error('Spawn discarded: no usable image for character %s',char['id'])
