@@ -374,7 +374,7 @@ def webhook(secret):
         abort(400)
     if not isinstance(data['update_id'], int):
         abort(400)
-    state=begin_update(data['update_id'])
+    state,lease_token=begin_update(data['update_id'])
     if state=='done':
         return 'OK',200
     if state!='acquired':
@@ -382,9 +382,11 @@ def webhook(secret):
     try:
         update=types.Update.de_json(data)
         bot.process_new_updates([update])
-        complete_update(data['update_id'])
+        if not complete_update(data['update_id'],lease_token):
+            logging.warning('Webhook lease expired before completion: %s',data['update_id'])
+            abort(503)
     except Exception:
         logging.exception('Telegram update %s failed; allowing retry',data['update_id'])
-        release_failed_update(data['update_id'])
+        release_failed_update(data['update_id'],lease_token)
         abort(503)
     return 'OK',200
