@@ -99,9 +99,10 @@ def try_spawn(chat_id, default_every, message_id=None):
                             variant_label=variant['label'])
             else:
                 char = dict(char,variant_id=None,variant_label='Original')
-            cur.execute("""UPDATE group_settings SET message_count=0,active_character_id=%s,
-                active_variant_id=%s,last_spawn=now() WHERE chat_id=%s""",
-                (char['id'],char['variant_id'],chat_id))
+            appearance=cur.execute("""UPDATE group_settings SET message_count=0,active_character_id=%s,
+                active_variant_id=%s,last_spawn=now() WHERE chat_id=%s RETURNING last_spawn""",
+                (char['id'],char['variant_id'],chat_id)).fetchone()
+            char['last_spawn']=appearance['last_spawn']
             return char
 
 
