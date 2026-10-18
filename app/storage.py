@@ -24,8 +24,9 @@ def get_cards(user_id, page=0, size=8):
     page = max(0, min(int(page), 99999))
     with connect() as db:
         total = db.execute('SELECT count(*) AS n FROM owned_cards WHERE owner_id=%s', (user_id,)).fetchone()['n']
-        cards = db.execute("""SELECT o.code,o.generation,o.favorite,c.name,c.series,c.rarity,c.telegram_file_id,c.image_url
+        cards = db.execute("""SELECT o.code,o.generation,o.favorite,c.name,c.series,COALESCE(v.rarity,c.rarity) AS rarity,COALESCE(v.telegram_file_id,c.telegram_file_id) AS telegram_file_id,COALESCE(v.image_url,c.image_url) AS image_url
             FROM owned_cards o JOIN characters c ON c.id=o.character_id
+            LEFT JOIN character_variants v ON v.id=o.variant_id
             WHERE o.owner_id=%s ORDER BY o.obtained_at DESC,o.id DESC
             LIMIT %s OFFSET %s""", (user_id, size, page * size)).fetchall()
         return cards, total
@@ -33,8 +34,8 @@ def get_cards(user_id, page=0, size=8):
 
 def get_card(code):
     with connect() as db:
-        return db.execute("""SELECT o.code,o.generation,o.owner_id,c.name,c.series,c.rarity,c.image_url,c.telegram_file_id
-            FROM owned_cards o JOIN characters c ON c.id=o.character_id WHERE o.code=%s""",
+        return db.execute("""SELECT o.code,o.generation,o.owner_id,c.name,c.series,COALESCE(v.rarity,c.rarity) AS rarity,COALESCE(v.image_url,c.image_url) AS image_url,COALESCE(v.telegram_file_id,c.telegram_file_id) AS telegram_file_id
+            FROM owned_cards o JOIN characters c ON c.id=o.character_id LEFT JOIN character_variants v ON v.id=o.variant_id WHERE o.code=%s""",
             (code.upper(),)).fetchone()
 
 
@@ -123,8 +124,9 @@ def claim(chat_id, user_id, guessed):
                 raise RuntimeError('Unable to allocate card code')
             cur.execute("""INSERT INTO owned_cards(code,character_id,owner_id,generation,caught_chat_id,variant_id)
                 VALUES (%s,%s,%s,%s,%s,%s)""", (code,char['id'],user_id,generation,chat_id,setting['active_variant_id']))
-            cur.execute('UPDATE group_settings SET active_character_id=NULL WHERE chat_id=%s', (chat_id,))
-            return dict(char,code=code,generation=generation,variant_id=setting['active_variant_id'])
+            cur.execute('UPDATE group_settings SET active_character_id=NULL,active_variant_id=NULL WHERE chat_id=%s', (chat_id,))
+            variant=cur.execute('SELECT label,rarity FROM character_variants WHERE id=%s', (setting['active_variant_id'],)).fetchone() if setting['active_variant_id'] else None
+            return dict(char,code=code,generation=generation,variant_id=setting['active_variant_id'],variant_label=variant['label'] if variant else 'Original',rarity=variant['rarity'] if variant else char['rarity'])
 
 
 def normalize_name(value):
