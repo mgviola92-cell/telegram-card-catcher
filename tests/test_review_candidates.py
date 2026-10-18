@@ -10,9 +10,14 @@ class ReviewCandidateTests(unittest.TestCase):
         self.assertTrue(all(x['name'] and x['series'] for x in records))
         self.assertTrue(all(x['image_url'] is None for x in records))
         self.assertTrue(all(x['artwork_status']=='awaiting_permission_review' for x in records))
-        verified=[x for x in records if x['metadata_status']=='source_verified']
-        self.assertEqual({x['source_key'] for x in verified}, {'wikidata:Q931','wikidata:Q477948'})
-        self.assertTrue(all(x['metadata_source_url']=='https://www.wikidata.org/wiki/'+x['source_key'].split(':')[1] for x in verified))
-        unverified=[x for x in records if x['metadata_status']=='awaiting_source_verification']
-        self.assertEqual(len(unverified),6)
-        self.assertTrue(all(x['source_key'] is None for x in unverified))
+        expected={'Naruto Uzumaki':'Q931','Sasuke Uchiha':'Q1740',
+                  'Sakura Haruno':'Q203240','Monkey D. Luffy':'Q477948',
+                  'Roronoa Zoro':'Q858432','Nami':'Q877964',
+                  'Son Goku':'Q2142','Vegeta':'Q180916'}
+        self.assertEqual({x['name'] for x in records},set(expected))
+        for item in records:
+            with self.subTest(name=item['name']):
+                ident=expected[item['name']]
+                self.assertEqual(item['metadata_status'],'source_verified')
+                self.assertEqual(item['source_key'],'wikidata:'+ident)
+                self.assertEqual(item['metadata_source_url'],'https://www.wikidata.org/wiki/'+ident)
