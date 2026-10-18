@@ -49,13 +49,13 @@ def coverage_report(snapshot):
     staged=stage(snapshot)
     from collections import Counter
     series=Counter(row['series'] for row in staged)
-    ids=[row['source_key'] for row in staged]
+    raw_ids=[item.get('mal_id') for item in snapshot['data'] if isinstance(item,dict) and type(item.get('mal_id')) is int and item['mal_id']>0]
     metadata=snapshot.get('meta') or {}
     return {
         'snapshot_rows':len(snapshot['data']),
         'reported_total':metadata.get('totalCharacters') if isinstance(metadata,dict) else None,
         'staged_unique_characters':len(staged),
-        'duplicate_character_ids_in_staged':len(ids)-len(set(ids)),
+        'repeated_source_ids_in_snapshot':len(raw_ids)-len(set(raw_ids)),
         'unique_primary_series':len(series),
         'largest_series':series.most_common(15),
         'eligible_for_live_import':0,
