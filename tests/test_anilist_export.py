@@ -5,7 +5,7 @@ class AniListParsingTests(unittest.TestCase):
     def test_character_with_media(self):
         record={"id":42,"name":{"full":"Aster","alternative":["Aster Star"]},
                 "image":{"large":"https://images.example.org/aster.png"},
-                "media":{"nodes":[{"type":"MANGA","title":{"english":"Sky Story"}}]}}
+                "media":{"nodes":[{"type":"MANGA","isAdult":False,"title":{"english":"Sky Story"}}]}}
         parsed=parse_character(record)
         self.assertEqual(parsed["source_key"],"anilist:character:42")
         self.assertEqual(parsed["category"],"manga")
