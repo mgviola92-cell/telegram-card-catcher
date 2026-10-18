@@ -204,16 +204,24 @@ def trade_callback(q):
         bot.answer_callback_query(q.id,'Invalid trade request.',show_alert=True)
 
 
-@bot.message_handler(commands=['gtop'])
-def global_top(msg):
-    rows=economy.leaderboard()
-    if not rows:
-        bot.reply_to(msg,'No cards caught yet.')
+@bot.message_handler(commands=['top','gtop','todaygtop'])
+def ranking_command(msg):
+    command=msg.text.split()[0].split('@')[0].lower()
+    if command=='/top' and msg.chat.type=='private':
+        bot.reply_to(msg,'/top is available in groups. Use /gtop for global rankings.')
         return
-    result=['🏆 Global Top Catchers']
+    group_id=msg.chat.id if command=='/top' else None
+    today=command=='/todaygtop'
+    rows=economy.leaderboard(chat_id=group_id,today=today)
+    if not rows:
+        bot.reply_to(msg,'🏆 No catches recorded for this ranking yet.')
+        return
+    title=('/top Group Catchers' if group_id is not None else
+           "Today's Global Catchers" if today else 'Global Top Catchers')
+    lines=[f'🏆 {title}']
     for index,row in enumerate(rows,1):
-        result.append(f"{index}. User {row['owner_id']} — {row['total']} cards")
-    bot.reply_to(msg,'\n'.join(result))
+        lines.append(f"{index}. User {row['owner_id']} — {row['total']} catches")
+    bot.reply_to(msg,'\n'.join(lines))
 
 
 @bot.message_handler(commands=['changetime'])
