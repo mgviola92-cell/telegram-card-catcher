@@ -17,9 +17,16 @@ QUERIES={
        ORDER BY -ln(greatest(random(),0.000001))/spawn_weight LIMIT 1""",
 }
 
-def run(url):
+def run(url, sample_size=5000):
+    if not 1<=sample_size<=20000:
+        raise ValueError("sample_size must be 1..20000")
     with psycopg.connect(url) as db:
-        results={}
+        # Populate disposable rows in a transaction and roll everything back.
+        db.execute("""INSERT INTO characters(name,series,image_url,weight)
+          SELECT 'Benchmark '||i,'Benchmark','https://example.org/placeholder.jpg',
+          1+(i%100) FROM generate_series(1,%s) AS i""",(sample_size,))
+        db.execute("ANALYZE characters")
+        results={"sample_characters":sample_size}
         for name,query in QUERIES.items():
             plan=db.execute("EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) "+query).fetchone()[0][0]
             results[name]={
@@ -27,6 +34,7 @@ def run(url):
                 "execution_ms":plan["Execution Time"],
                 "plan":plan["Plan"]["Node Type"],
             }
+        db.rollback()
         return results
 
 if __name__=="__main__":
