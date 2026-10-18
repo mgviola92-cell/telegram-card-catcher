@@ -231,5 +231,17 @@
     ],
     "image_rights": "separate",
     "enabled_for_import": false
+  },
+  {
+    "source": "Anime Offline Database (cedya77 maintained)",
+    "role": "series_cross_reference",
+    "access": "versioned_release_jsonl",
+    "review": "check_current_license_and_attribution",
+    "urls": [
+      "https://github.com/cedya77/anime-offline-database",
+      "https://github.com/cedya77/anime-offline-database/releases/download/latest/anime-offline-database.jsonl"
+    ],
+    "image_rights": "separate",
+    "enabled_for_import": false
   }
 ]
