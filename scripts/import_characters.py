@@ -85,6 +85,7 @@ if __name__=='__main__':
     parser.add_argument('json_file')
     parser.add_argument('--apply',action='store_true',help='Write to PostgreSQL; default only validates')
     parser.add_argument('--allow-warnings',action='store_true',help='Override catalog duplicate/unknown-series warnings after review')
+    parser.add_argument('--rights-reviewed',action='store_true',help='Confirm artwork usage permissions reviewed before import')
     args=parser.parse_args()
     with open(args.json_file,encoding='utf-8') as f:
         data=json.load(f)
@@ -94,6 +95,8 @@ if __name__=='__main__':
     rows=validate(data)
     print(f'Validated {len(rows)} character records.')
     if args.apply:
+        if not args.rights_reviewed:
+            parser.error('--apply requires --rights-reviewed after artwork permissions review')
         print('Characters imported:',import_batch(data))
     else:
         print('Dry run only. Review image rights, then use --apply to import.')
