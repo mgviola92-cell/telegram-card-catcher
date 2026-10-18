@@ -144,3 +144,27 @@ class FullFlowTests(unittest.TestCase):
         self.assertFalse(storage.message_already_caught(self.chat+1,987654))
         self.assertIsNone(storage.claim(self.chat,702,spawned['name'],message_id=987654))
         self.assertEqual(storage.get_cards(701)[1],1)
+
+    def test_activity_retry_counts_message_once(self):
+        chat=self.chat
+        self.assertIsNone(storage.try_spawn(chat,35,message_id=1001))
+        self.assertIsNone(storage.try_spawn(chat,35,message_id=1001))
+        with self.connect() as db:
+            row=db.execute('SELECT message_count FROM group_settings WHERE chat_id=%s',(chat,)).fetchone()
+            stored=db.execute('SELECT count(*) AS n FROM counted_messages WHERE chat_id=%s AND message_id=1001',(chat,)).fetchone()
+        self.assertEqual(row['message_count'],1)
+        self.assertEqual(stored['n'],1)
+        self.assertIsNone(storage.try_spawn(chat,35,message_id=1002))
+        with self.connect() as db:
+            row=db.execute('SELECT message_count FROM group_settings WHERE chat_id=%s',(chat,)).fetchone()
+        self.assertEqual(row['message_count'],2)
+
+    def test_duplicate_activity_at_spawn_threshold_does_not_spawn_twice(self):
+        chat=self.chat
+        spawned=storage.try_spawn(chat,1,message_id=2001)
+        self.assertIsNotNone(spawned)
+        self.assertIsNone(storage.try_spawn(chat,1,message_id=2001))
+        with self.connect() as db:
+            row=db.execute('SELECT active_character_id,message_count FROM group_settings WHERE chat_id=%s',(chat,)).fetchone()
+        self.assertEqual(row['active_character_id'],spawned['id'])
+        self.assertEqual(row['message_count'],0)
