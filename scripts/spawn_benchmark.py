@@ -24,7 +24,7 @@ def run(url, sample_size=5000):
         # Populate disposable rows in a transaction and roll everything back.
         db.execute("""INSERT INTO characters(name,series,image_url,weight)
           SELECT 'Benchmark '||i,'Benchmark','https://example.org/placeholder.jpg',
-          1+(i%100) FROM generate_series(1,%s) AS i""",(sample_size,))
+          1+mod(i,100) FROM generate_series(1,%s) AS i""",(sample_size,))
         db.execute("ANALYZE characters")
         results={"sample_characters":sample_size}
         for name,query in QUERIES.items():
