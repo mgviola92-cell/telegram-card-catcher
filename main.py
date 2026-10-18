@@ -360,7 +360,7 @@ def activity(msg):
     if caught:
         bot.reply_to(msg,catching.catch_result(caught,msg.from_user))
         return
-    spawned=storage.try_spawn(msg.chat.id,SPAWN_MESSAGES)
+    spawned=storage.try_spawn(msg.chat.id,SPAWN_MESSAGES,msg.message_id)
     if spawned:
         send_spawn(msg.chat.id,spawned)
 
