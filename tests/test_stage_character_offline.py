@@ -20,3 +20,13 @@ class StageCharacterOfflineTests(unittest.TestCase):
     def test_invalid_snapshot_rejected(self):
         with self.assertRaises(ValueError):
             stage([{}])
+
+    def test_malformed_nested_fields_do_not_crash_batch(self):
+        snapshot={'data':[{'mal_id':33,'name':'Valid','nicknames':'not-a-list',
+            'animeAppearances':[None,{'anime':{'title':'Working Series'}}]},
+            {'mal_id':34,'name':'Broken','animeAppearances':'not-a-list'}]}
+        rows=stage(snapshot)
+        self.assertEqual(len(rows),1)
+        self.assertEqual(rows[0]['name'],'Valid')
+        self.assertEqual(rows[0]['aliases'],[])
+        self.assertEqual(rows[0]['series'],'Working Series')
