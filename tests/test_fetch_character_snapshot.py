@@ -12,7 +12,11 @@ class Reply:
         self.headers={'Content-Length':str(declared if declared is not None else len(content))}
     def __enter__(self): return self
     def __exit__(self,*args): pass
-    def read(self,n): return self.content[:n]
+    def read(self,n):
+        if not hasattr(self,'position'): self.position=0
+        part=self.content[self.position:self.position+n]
+        self.position+=len(part)
+        return part
 
 class SnapshotFetcherTests(unittest.TestCase):
     def test_official_snapshot_saved_when_valid(self):
@@ -36,3 +40,10 @@ class SnapshotFetcherTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 download_snapshot(dest,opener=lambda *a,**k:Reply(b'{}'))
             self.assertEqual(dest.read_text(),'previous')
+
+    def test_partial_network_reads_are_assembled(self):
+        content=json.dumps({'data':[{'mal_id':1},{'mal_id':2}]}).encode()
+        with tempfile.TemporaryDirectory() as folder:
+            target=Path(folder)/'snapshot.json'
+            self.assertEqual(download_snapshot(target,opener=lambda *a,**k:Reply(content)),2)
+            self.assertEqual(target.read_bytes(),content)
