@@ -20,7 +20,7 @@ COMMANDS_TEXT = (
     "📚 𝗖𝗔𝗥𝗗 𝗞𝗢𝗨𝗧 — 𝗖𝗢𝗠𝗠𝗔𝗡𝗗𝗦\n"
     "━━━━━━━━━━━━━━━━━━━━\n\n"
     "🃏 𝗖𝗢𝗟𝗟𝗘𝗖𝗧𝗜𝗢𝗡\n"
-    "/harem — Global Collection ကြည့်ရန်\n"
+    "/catch NAME — Group မှာ Character ဖမ်းရန်\n"\n    "/harem — Global Collection ကြည့်ရန်\n"
     "/collection — Collection ကြည့်ရန်\n"
     "/recent — Recent Cards ကြည့်ရန်\n"
     "/showcase — Artwork ပါတဲ့ Collection Preview\n"
@@ -71,7 +71,7 @@ GUIDE_TEXT = (
     "① Bot ကို Group ထဲထည့်ပါ။\n"
     "② BotFather မှာ Group Privacy ကို Disable လုပ်ထားရမယ်။\n"
     "③ Group Message Count ပြည့်ရင် Character ပုံပေါ်လာမယ်။\n"
-    "④ Character ရဲ့နာမည်ကို ပထမဆုံးမှန်အောင် ရိုက်ပါ။\n"
+    "④ နာမည်ကို ရိုက်ပါ သို့မဟုတ် /catch NAME သုံးပါ။\n"
     "⑤ ရထားတဲ့ Card ကို /harem နဲ့ ကြည့်ပါ။\n\n"
     "💡 Admin တွေက /changetime 35 နဲ့ Spawn Rate ပြင်နိုင်ပါတယ်။"
 )
