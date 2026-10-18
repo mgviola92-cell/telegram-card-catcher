@@ -8,7 +8,7 @@ from scripts.anilist_export import export
 class ExportResumeTests(unittest.TestCase):
     @patch('scripts.anilist_export.request_page')
     def test_resume_from_later_pages_without_replacing_prior(self,fetch):
-        fetch.return_value={'characters':[{'id':51,'name':{'full':'New Hero'},'image':{'large':'https://example.org/new.png'},'media':{'nodes':[{'type':'ANIME','title':{'english':'New Show'}}]}}],'pageInfo':{'hasNextPage':True}}
+        fetch.return_value={'characters':[{'id':51,'name':{'full':'New Hero'},'image':{'large':'https://example.org/new.png'},'media':{'nodes':[{'type':'ANIME','isAdult':False,'title':{'english':'New Show'}}]}}],'pageInfo':{'hasNextPage':True}}
         with tempfile.TemporaryDirectory() as folder:
             output=Path(folder)/'export.json'
             output.write_text(json.dumps([{'source_key':'original:old','name':'Old Hero','series':'Original','image_url':'https://example.org/old.png'}]))
