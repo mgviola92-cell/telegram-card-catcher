@@ -7,7 +7,7 @@ from telebot import types
 from app import storage
 from app.webhook_guard import begin_update
 from app import welcome
-from app import economy, trading
+from app import economy, trading, collection_ui
 
 logging.basicConfig(level=logging.INFO)
 TOKEN = os.environ['BOT_TOKEN']
@@ -19,22 +19,15 @@ storage.initialize()
 
 
 def collection_text(user_id, page):
-    cards,total = storage.get_cards(user_id,page)
-    pages = max(1,(total+7)//8)
+    cards,total = storage.get_cards(user_id,page,size=collection_ui.PAGE_SIZE)
+    pages = max(1,(total+collection_ui.PAGE_SIZE-1)//collection_ui.PAGE_SIZE)
     page = min(max(0,page),pages-1)
-    if page*8>=total and total:
-        cards,total = storage.get_cards(user_id,page)
+    if page*collection_ui.PAGE_SIZE>=total and total:
+        cards,total = storage.get_cards(user_id,page,size=collection_ui.PAGE_SIZE)
     if not cards:
         return '🃏 Your harem is empty. Catch a character in a group!',None
     rows = [f"{'⭐ ' if c['favorite'] else ''}• {c['name']} · {c['rarity']} · Gen {c['generation']}\n  🆔 {c['code']}" for c in cards]
-    keyboard = types.InlineKeyboardMarkup()
-    buttons = []
-    if page:
-        buttons.append(types.InlineKeyboardButton('◀️',callback_data=f'harem:{user_id}:{page-1}'))
-    buttons.append(types.InlineKeyboardButton(f'{page+1}/{pages}',callback_data='noop'))
-    if page+1<pages:
-        buttons.append(types.InlineKeyboardButton('▶️',callback_data=f'harem:{user_id}:{page+1}'))
-    keyboard.row(*buttons)
+    keyboard = collection_ui.page_markup(user_id,cards,page,total)
     return f'🃏 Global Harem · {total} cards\n\n'+'\n'.join(rows),keyboard
 
 
@@ -126,6 +119,52 @@ def turn_page(q):
         bot.answer_callback_query(q.id)
     except (ValueError,TypeError):
         bot.answer_callback_query(q.id,'Invalid page.')
+
+
+@bot.callback_query_handler(func=lambda q: bool(q.data) and q.data.startswith(('card:','cardfav:','cardback:')))
+def browse_card(q):
+    try:
+        action, owner, value, *rest = q.data.split(':')
+        if int(owner)!=q.from_user.id:
+            bot.answer_callback_query(q.id,'Not your collection.',show_alert=True)
+            return
+        if action=='cardback':
+            page=int(value)
+            if not 0<=page<=99999:
+                raise ValueError
+            txt,kb=collection_text(q.from_user.id,page)
+            bot.send_message(q.message.chat.id,txt,reply_markup=kb)
+        else:
+            if len(rest)!=1:
+                raise ValueError
+            page=int(rest[0])
+            if not 0<=page<=99999:
+                raise ValueError
+            card=storage.get_card(value)
+            if not card or card['owner_id']!=q.from_user.id:
+                bot.answer_callback_query(q.id,'Card no longer in your collection.',show_alert=True)
+                return
+            if action=='cardfav':
+                storage.set_favorites(q.from_user.id,[value],not card['favorite'])
+                card=storage.get_card(value)
+            caption=collection_ui.card_caption(card)
+            keyboard=collection_ui.card_markup(q.from_user.id,value,page,card['favorite'])
+            for source in (card.get('telegram_file_id'),card.get('image_url')):
+                if not source:
+                    continue
+                try:
+                    photo=bot.send_photo(q.message.chat.id,source,caption=caption,reply_markup=keyboard)
+                    if photo.photo and source==card.get('image_url'):
+                        storage.cache_image(card['character_id'],photo.photo[-1].file_id,
+                                            card['variant_id'],card['image_url'])
+                    break
+                except telebot.apihelper.ApiTelegramException:
+                    logging.warning('Card browser image rejected by Telegram')
+            else:
+                bot.send_message(q.message.chat.id,caption,reply_markup=keyboard)
+        bot.answer_callback_query(q.id)
+    except (ValueError,TypeError,IndexError):
+        bot.answer_callback_query(q.id,'Invalid card page.',show_alert=True)
 
 
 @bot.message_handler(commands=['check','view'])
