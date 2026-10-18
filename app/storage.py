@@ -128,7 +128,7 @@ def claim(chat_id, user_id, guessed):
             recent = cur.execute("""SELECT %s >= now()-interval '15 minutes' AS recent""",
                                  (setting['last_spawn'],)).fetchone()['recent']
             if not recent:
-                cur.execute('UPDATE group_settings SET active_character_id=NULL WHERE chat_id=%s', (chat_id,))
+                cur.execute('UPDATE group_settings SET active_character_id=NULL,active_variant_id=NULL WHERE chat_id=%s', (chat_id,))
                 return None
             char = cur.execute('SELECT * FROM characters WHERE id=%s', (setting['active_character_id'],)).fetchone()
             if guessed not in {normalize_name(n) for n in [char['name'],*char['aliases']]}:
