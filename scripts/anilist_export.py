@@ -93,7 +93,9 @@ def export(pages, output, delay=2.0):
     existing = []
     if destination.exists():
         existing = json.loads(destination.read_text(encoding="utf-8"))
-    catalog = {item["source_key"]: item for item in existing}
+        if not isinstance(existing,list):
+            raise ValueError("Existing export must be a JSON array")
+    catalog = {item["source_key"]: item for item in existing if isinstance(item,dict) and "source_key" in item}
     for page in range(1, pages + 1):
         result = request_page(page)
         for character in result.get("characters") or []:
@@ -101,10 +103,13 @@ def export(pages, output, delay=2.0):
             if parsed:
                 catalog[parsed["source_key"]] = parsed
         destination.parent.mkdir(parents=True, exist_ok=True)
-        destination.write_text(
-            json.dumps(list(catalog.values()), ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
+        # Validate the generated output before replacing the last good file.
+        from scripts.import_characters import validate
+        records=list(catalog.values())
+        validate(records)
+        staging=destination.with_suffix(destination.suffix + ".tmp")
+        staging.write_text(json.dumps(records, ensure_ascii=False, indent=2),encoding="utf-8")
+        staging.replace(destination)
         if not result.get("pageInfo", {}).get("hasNextPage"):
             break
         if page < pages:
