@@ -211,3 +211,23 @@ def search_characters(term, limit=10):
         return db.execute('''SELECT id,name,series,rarity FROM characters
             WHERE enabled=true AND (name ILIKE %s ESCAPE '\\' OR series ILIKE %s ESCAPE '\\')
             ORDER BY name,id LIMIT %s''', ('%'+escaped+'%', '%'+escaped+'%', limit)).fetchall()
+
+
+def prune_counted_messages(days=7, batch_size=1000):
+    """Delete only a bounded batch of old replay keys; safe to call periodically.
+
+    Keep the retention window longer than Telegram's normal webhook retry window.
+    """
+    if type(days) is not int or not 3 <= days <= 30:
+        raise ValueError('days must be 3..30')
+    if type(batch_size) is not int or not 1 <= batch_size <= 5000:
+        raise ValueError('batch_size must be 1..5000')
+    with connect() as db:
+        rows=db.execute("""WITH stale AS (
+                SELECT chat_id,message_id FROM counted_messages
+                WHERE counted_at < now() - (%s * interval '1 day')
+                ORDER BY counted_at LIMIT %s
+            ) DELETE FROM counted_messages c USING stale
+            WHERE c.chat_id=stale.chat_id AND c.message_id=stale.message_id
+            RETURNING c.message_id""",(days,batch_size)).fetchall()
+        return len(rows)
