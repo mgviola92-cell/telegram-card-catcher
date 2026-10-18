@@ -100,9 +100,8 @@ def showcase(msg):
         try:
             media=bot.send_photo(msg.chat.id,source,caption=caption)
             if source==featured.get('image_url') and media.photo:
-                with storage.connect() as db:
-                    db.execute('UPDATE characters SET telegram_file_id=%s WHERE image_url=%s',
-                               (media.photo[-1].file_id,featured['image_url']))
+                storage.cache_image(featured['character_id'],media.photo[-1].file_id,
+                                    featured['variant_id'],featured['image_url'])
             return
         except telebot.apihelper.ApiTelegramException:
             logging.warning('Showcase artwork unavailable')
@@ -150,9 +149,8 @@ def check(msg):
         try:
             media=bot.send_photo(msg.chat.id,source,caption=caption)
             if media.photo and source==row.get('image_url'):
-                with storage.connect() as db:
-                    db.execute("""UPDATE characters SET telegram_file_id=%s
-                         WHERE image_url=%s""",(media.photo[-1].file_id,row['image_url']))
+                storage.cache_image(row['character_id'],media.photo[-1].file_id,
+                                    row['variant_id'],row['image_url'])
             return
         except telebot.apihelper.ApiTelegramException:
             logging.warning('Telegram rejected /check image source')
@@ -294,8 +292,9 @@ def send_spawn(chat_id,char):
     for source in filter(None,sources):
         try:
             message=bot.send_photo(chat_id,source,caption=caption)
-            if message.photo and not char.get('telegram_file_id'):
-                storage.cache_image(char['id'],message.photo[-1].file_id)
+            if message.photo and source == char.get('image_url'):
+                storage.cache_image(char['id'],message.photo[-1].file_id,
+                                    char.get('variant_id'),char['image_url'])
             return
         except Exception:
             logging.exception('Spawn image source failed')
