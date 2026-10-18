@@ -29,3 +29,23 @@ class MediaDeliveryTests(unittest.TestCase):
         bot=Mock()
         bot.send_photo.side_effect=ApiTelegramException('sendPhoto',Mock(status_code=400,reason='Bad Request'),{'error_code':400,'description':'Bad Request'})
         self.assertIsNone(send_photo(bot,Mock(),123,{'image_url':'https://example.org/missing.jpg','character_id':1}))
+
+    def test_successful_photo_not_resent_when_cache_write_fails(self):
+        bot=Mock()
+        storage=Mock()
+        storage.cache_image.side_effect=RuntimeError('database offline')
+        art={'character_id':42,'variant_id':None,'image_url':'https://example.org/art.jpg'}
+        bot.send_photo.return_value=SimpleNamespace(photo=[SimpleNamespace(file_id='fresh-id')])
+        response=send_photo(bot,storage,123,art)
+        self.assertIs(response,bot.send_photo.return_value)
+        bot.send_photo.assert_called_once()
+
+    def test_failed_stale_cache_cleanup_still_tries_url(self):
+        bot=Mock()
+        storage=Mock()
+        storage.clear_cached_image.side_effect=RuntimeError('database offline')
+        error=ApiTelegramException('sendPhoto',Mock(status_code=400,reason='Bad Request'),
+                                  {'error_code':400,'description':'Bad Request: wrong file identifier'})
+        bot.send_photo.side_effect=[error,SimpleNamespace(photo=[SimpleNamespace(file_id='new-id')])]
+        self.assertIsNotNone(send_photo(bot,storage,123,ART))
+        self.assertEqual(bot.send_photo.call_count,2)
