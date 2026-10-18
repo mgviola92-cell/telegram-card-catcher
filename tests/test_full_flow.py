@@ -40,6 +40,7 @@ class FullFlowTests(unittest.TestCase):
             db.execute('DELETE FROM trade_offers WHERE sender_id IN (701,702) OR receiver_id IN (701,702)')
             db.execute('DELETE FROM card_transfers WHERE from_user_id IN (701,702) OR to_user_id IN (701,702)')
             db.execute('DELETE FROM owned_cards WHERE character_id=ANY(%s)',(self.cids,))
+            db.execute('DELETE FROM counted_messages WHERE chat_id=%s',(self.chat,))
             db.execute('DELETE FROM group_settings WHERE chat_id=%s',(self.chat,))
             db.execute('DELETE FROM character_variants WHERE character_id=ANY(%s)',(self.cids,))
             db.execute('DELETE FROM characters WHERE id=ANY(%s)',(self.cids,))
