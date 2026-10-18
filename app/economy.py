@@ -23,8 +23,15 @@ def leaderboard(chat_id=None,limit=10,today=False):
         clauses.append("obtained_at >= date_trunc('day',now() AT TIME ZONE 'Asia/Yangon') AT TIME ZONE 'Asia/Yangon'")
     where='WHERE '+' AND '.join(clauses) if clauses else ''
     with connect() as db:
-        return db.execute(f"""SELECT owner_id,count(*) AS total FROM owned_cards
-            {where} GROUP BY owner_id ORDER BY total DESC,owner_id LIMIT %s""",
+        return db.execute(f"""SELECT COALESCE(o.catcher_id,original.from_user_id,o.owner_id) AS owner_id,
+                   count(*) AS total
+            FROM owned_cards o
+            LEFT JOIN LATERAL (
+                SELECT t.from_user_id FROM card_transfers t
+                WHERE t.card_id=o.id ORDER BY t.created_at,t.id LIMIT 1
+            ) original ON true
+            {where} GROUP BY COALESCE(o.catcher_id,original.from_user_id,o.owner_id)
+            ORDER BY total DESC,owner_id LIMIT %s""",
             (*params,limit)).fetchall()
 
 def ownership(user_id,code):
