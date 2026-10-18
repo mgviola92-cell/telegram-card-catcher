@@ -1,0 +1,213 @@
+[
+  {
+    "source": "ACDB",
+    "role": "character_metadata",
+    "access": "official_sql_gzip",
+    "review": "database_license_and_schema",
+    "urls": [
+      "https://www.animecharactersdatabase.com/hosted/characters.sql.gz",
+      "https://www.animecharactersdatabase.com/hosted/publishers.sql.gz",
+      "https://www.animecharactersdatabase.com/hosted/assignments.sql.gz"
+    ],
+    "image_rights": "separate",
+    "enabled_for_import": false
+  },
+  {
+    "source": "Wikidata",
+    "role": "character_metadata",
+    "access": "cc0_structured_data",
+    "review": "source_mapping",
+    "urls": [
+      "https://www.wikidata.org/"
+    ],
+    "image_rights": "separate",
+    "enabled_for_import": false
+  },
+  {
+    "source": "Anime Offline Database",
+    "role": "series_cross_reference",
+    "access": "official_download",
+    "review": "odbl_attribution_share_alike",
+    "urls": [
+      "https://github.com/manami-project/anime-offline-database"
+    ],
+    "image_rights": "separate",
+    "enabled_for_import": false
+  },
+  {
+    "source": "Bangumi",
+    "role": "character_metadata",
+    "access": "api",
+    "review": "api_terms_and_rate_limits",
+    "urls": [
+      "https://bangumi.github.io/api/"
+    ],
+    "image_rights": "separate",
+    "enabled_for_import": false
+  },
+  {
+    "source": "VNDB",
+    "role": "visual_novel_metadata",
+    "access": "official_dump",
+    "review": "database_terms_and_age_filter",
+    "urls": [
+      "https://vndb.org/d17"
+    ],
+    "image_rights": "separate",
+    "enabled_for_import": false
+  },
+  {
+    "source": "Jikan",
+    "role": "supplemental_metadata",
+    "access": "unofficial_api",
+    "review": "underlying_mal_rights",
+    "urls": [
+      "https://docs.api.jikan.moe/"
+    ],
+    "image_rights": "separate",
+    "enabled_for_import": false
+  },
+  {
+    "source": "Kitsu",
+    "role": "supplemental_metadata",
+    "access": "api",
+    "review": "api_terms",
+    "urls": [
+      "https://kitsu.docs.apiary.io/"
+    ],
+    "image_rights": "separate",
+    "enabled_for_import": false
+  },
+  {
+    "source": "Shikimori",
+    "role": "supplemental_metadata",
+    "access": "api",
+    "review": "api_terms",
+    "urls": [
+      "https://shikimori.one/api/doc"
+    ],
+    "image_rights": "separate",
+    "enabled_for_import": false
+  },
+  {
+    "source": "AniList",
+    "role": "manual_metadata_reference",
+    "access": "limited_api",
+    "review": "no_mass_harvesting",
+    "urls": [
+      "https://anilist.gitbook.io/anilist-apiv2-docs/"
+    ],
+    "image_rights": "separate",
+    "enabled_for_import": false
+  },
+  {
+    "source": "Wikimedia Commons",
+    "role": "reviewed_artwork",
+    "access": "media_api",
+    "review": "per_file_license_and_attribution",
+    "urls": [
+      "https://commons.wikimedia.org/"
+    ],
+    "image_rights": "per_file",
+    "enabled_for_import": false
+  },
+  {
+    "source": "Openverse",
+    "role": "reviewed_artwork_search",
+    "access": "api",
+    "review": "verify_each_underlying_license",
+    "urls": [
+      "https://api.openverse.org/v1/"
+    ],
+    "image_rights": "per_file",
+    "enabled_for_import": false
+  },
+  {
+    "source": "OpenGameArt",
+    "role": "game_artwork_reference",
+    "access": "website",
+    "review": "per_asset_license",
+    "urls": [
+      "https://opengameart.org/"
+    ],
+    "image_rights": "per_asset",
+    "enabled_for_import": false
+  },
+  {
+    "source": "PokéAPI",
+    "role": "game_metadata",
+    "access": "api",
+    "review": "pokemon_artwork_copyright",
+    "urls": [
+      "https://pokeapi.co/"
+    ],
+    "image_rights": "separate",
+    "enabled_for_import": false
+  },
+  {
+    "source": "AnimeOmni",
+    "role": "research_only",
+    "access": "hf_dataset",
+    "review": "third_party_image_rights",
+    "urls": [
+      "https://huggingface.co/datasets/kurumikz/AnimeOmni"
+    ],
+    "image_rights": "unverified",
+    "enabled_for_import": false
+  },
+  {
+    "source": "anime-characters-2M",
+    "role": "research_only",
+    "access": "hf_parquet",
+    "review": "third_party_image_rights_and_character_matching",
+    "urls": [
+      "https://huggingface.co/datasets/adipanda/anime-characters-2M"
+    ],
+    "image_rights": "unverified",
+    "enabled_for_import": false
+  },
+  {
+    "source": "AniDB via animap",
+    "role": "series_cross_reference",
+    "access": "api",
+    "review": "api_terms",
+    "urls": [
+      "https://animap.id/docs/anidb"
+    ],
+    "image_rights": "separate",
+    "enabled_for_import": false
+  },
+  {
+    "source": "aniSearch via animap",
+    "role": "series_cross_reference",
+    "access": "api",
+    "review": "attribution_and_api_terms",
+    "urls": [
+      "https://animap.id/docs/anisearch"
+    ],
+    "image_rights": "separate",
+    "enabled_for_import": false
+  },
+  {
+    "source": "Pinterest",
+    "role": "discovery_only",
+    "access": "website",
+    "review": "no_automated_image_collection",
+    "urls": [
+      "https://www.pinterest.com/"
+    ],
+    "image_rights": "unverified",
+    "enabled_for_import": false
+  },
+  {
+    "source": "Fandom",
+    "role": "reference_only",
+    "access": "website",
+    "review": "individual_image_licenses",
+    "urls": [
+      "https://www.fandom.com/"
+    ],
+    "image_rights": "separate",
+    "enabled_for_import": false
+  }
+]
