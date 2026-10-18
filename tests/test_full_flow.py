@@ -169,3 +169,24 @@ class FullFlowTests(unittest.TestCase):
             row=db.execute('SELECT active_character_id,message_count FROM group_settings WHERE chat_id=%s',(chat,)).fetchone()
         self.assertEqual(row['active_character_id'],spawned['id'])
         self.assertEqual(row['message_count'],0)
+
+    def test_counted_message_retention_prunes_old_only(self):
+        with self.connect() as db:
+            db.execute("""INSERT INTO counted_messages(chat_id,message_id,counted_at)
+                VALUES (%s,301,now()-interval '9 days'),
+                       (%s,302,now()-interval '8 days'),
+                       (%s,303,now())""",(self.chat,self.chat,self.chat))
+        self.assertEqual(storage.prune_counted_messages(days=7,batch_size=1),1)
+        with self.connect() as db:
+            remaining={row['message_id'] for row in db.execute(
+                'SELECT message_id FROM counted_messages WHERE chat_id=%s',(self.chat,)).fetchall()}
+        self.assertEqual(len(remaining),2)
+        self.assertIn(303,remaining)
+        self.assertEqual(storage.prune_counted_messages(days=7,batch_size=5),1)
+        self.assertEqual(storage.prune_counted_messages(days=7,batch_size=5),0)
+
+    def test_counted_message_retention_rejects_bad_limits(self):
+        for kwargs in (dict(days=0),dict(days=2),dict(days=True),
+                       dict(batch_size=0),dict(batch_size=5001)):
+            with self.assertRaises(ValueError):
+                storage.prune_counted_messages(**kwargs)
