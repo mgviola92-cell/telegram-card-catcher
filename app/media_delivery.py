@@ -13,10 +13,17 @@ def send_photo(bot, storage, chat_id, art, **kwargs):
         except ApiTelegramException:
             logging.warning('Telegram rejected artwork source; trying fallback')
             if source==cached:
-                storage.clear_cached_image(art['character_id'],art.get('variant_id'),cached)
+                try:
+                    storage.clear_cached_image(art['character_id'],art.get('variant_id'),cached)
+                except Exception:
+                    logging.exception('Stale image cache cleanup failed')
             continue
         if source==url and message.photo:
-            storage.cache_image(art['character_id'],message.photo[-1].file_id,
-                                art.get('variant_id'),url)
+            try:
+                storage.cache_image(art['character_id'],message.photo[-1].file_id,
+                                    art.get('variant_id'),url)
+            except Exception:
+                # The photo has already been delivered. Do not retry sending it.
+                logging.exception('Image sent, but Telegram file_id cache save failed')
         return message
     return None
