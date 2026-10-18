@@ -1,32 +1,31 @@
-"""Atomic gifting, swaps and leaderboards. No real-money value."""
+"""Atomic gifts and leaderboard queries. All credits are fictional, not cash."""
 from app.storage import connect
 
-def gift_card(owner_id, receiver_id, code):
-    if owner_id == receiver_id: return False
+def gift_card(owner_id,receiver_id,code):
+    if owner_id==receiver_id or not code or len(code)>32: return False
     with connect() as db:
-        row=db.execute("""UPDATE owned_cards SET owner_id=%s, favorite=false
-          WHERE code=%s AND owner_id=%s RETURNING id""",(receiver_id,code.upper(),owner_id)).fetchone()
-        return bool(row)
-
-def trade_cards(user_a, user_b, code_a, code_b):
-    if user_a==user_b or code_a.upper()==code_b.upper(): return False
-    with connect() as db:
-        # Lock in deterministic code order to avoid concurrent trade deadlocks.
-        rows=db.execute("""SELECT code,owner_id FROM owned_cards WHERE code=ANY(%s)
-            ORDER BY code FOR UPDATE""",([code_a.upper(),code_b.upper()],)).fetchall()
-        owners={r['code']:r['owner_id'] for r in rows}
-        if owners.get(code_a.upper())!=user_a or owners.get(code_b.upper())!=user_b: return False
-        db.execute("""UPDATE owned_cards SET owner_id=CASE
-           WHEN code=%s THEN %s WHEN code=%s THEN %s END, favorite=false
-           WHERE code IN (%s,%s)""",
-           (code_a.upper(),user_b,code_b.upper(),user_a,code_a.upper(),code_b.upper()))
+        row=db.execute("""UPDATE owned_cards SET owner_id=%s,favorite=false
+          WHERE code=%s AND owner_id=%s RETURNING id""",
+          (receiver_id,code.upper(),owner_id)).fetchone()
+        if not row: return False
+        db.execute("""INSERT INTO card_transfers(card_id,from_user_id,to_user_id,reason)
+          VALUES (%s,%s,%s,'gift')""",(row['id'],owner_id,receiver_id))
         return True
 
-def leaderboard(chat_id=None, limit=10):
+def leaderboard(chat_id=None,limit=10,today=False):
+    limit=max(1,min(50,int(limit)))
+    clauses=[]
+    params=[]
+    if chat_id is not None:
+        clauses.append('caught_chat_id=%s')
+        params.append(chat_id)
+    if today:
+        clauses.append("obtained_at >= date_trunc('day',now() AT TIME ZONE 'Asia/Yangon') AT TIME ZONE 'Asia/Yangon'")
+    where='WHERE '+' AND '.join(clauses) if clauses else ''
     with connect() as db:
-        # Global ranking until group catch attribution is introduced.
-        return db.execute("""SELECT owner_id,count(*) AS total FROM owned_cards
-            GROUP BY owner_id ORDER BY total DESC, owner_id LIMIT %s""",(limit,)).fetchall()
+        return db.execute(f"""SELECT owner_id,count(*) AS total FROM owned_cards
+            {where} GROUP BY owner_id ORDER BY total DESC,owner_id LIMIT %s""",
+            (*params,limit)).fetchall()
 
 def ownership(user_id,code):
     with connect() as db:
