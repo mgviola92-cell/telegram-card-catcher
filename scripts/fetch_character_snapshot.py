@@ -65,7 +65,7 @@ if __name__=="__main__":
         from scripts.stage_character_offline import coverage_report, convert
         if args.report:
             source=json.loads(Path(args.output).read_text(encoding="utf-8"))
-            Path(args.report).write_text(json.dumps(coverage_report(source),ensure_ascii=False,indent=2)+"\\n",encoding="utf-8")
+            Path(args.report).write_text(json.dumps(coverage_report(source),ensure_ascii=False,indent=2)+chr(10),encoding="utf-8")
             print("Measured coverage report:",args.report)
         if args.stage:
             print("Review-only records:",convert(args.output,args.stage))
