@@ -24,7 +24,7 @@ def get_cards(user_id, page=0, size=8):
     page = max(0, min(int(page), 99999))
     with connect() as db:
         total = db.execute('SELECT count(*) AS n FROM owned_cards WHERE owner_id=%s', (user_id,)).fetchone()['n']
-        cards = db.execute("""SELECT o.code,o.generation,o.favorite,c.name,c.series,c.rarity
+        cards = db.execute("""SELECT o.code,o.generation,o.favorite,c.name,c.series,c.rarity,c.telegram_file_id,c.image_url
             FROM owned_cards o JOIN characters c ON c.id=o.character_id
             WHERE o.owner_id=%s ORDER BY o.obtained_at DESC,o.id DESC
             LIMIT %s OFFSET %s""", (user_id, size, page * size)).fetchall()
