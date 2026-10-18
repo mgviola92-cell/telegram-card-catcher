@@ -20,3 +20,20 @@ class QualityGateTests(unittest.TestCase):
     def test_override_requires_explicit_flag(self):
         data=[item('original:one'),item('original:two','Second')]
         self.assertFalse(require_approval(data,allow_warnings=True)['passed'])
+
+    def test_inconsistent_series_spellings_block_batch(self):
+        a=item('original:one',name='First')
+        b=item('original:two',name='Second',url='https://example.org/second.png')
+        a['series']='One Piece'
+        b['series']=' one  piece '
+        result=report([a,b])
+        self.assertFalse(result['passed'])
+        self.assertIn('one piece',result['inconsistent_series'])
+        with self.assertRaises(ValueError):
+            require_approval([a,b])
+
+    def test_same_series_spelling_is_accepted(self):
+        a=item('original:one',name='First')
+        b=item('original:two',name='Second',url='https://example.org/second.png')
+        a['series']=b['series']='One Piece'
+        self.assertTrue(report([a,b])['passed'])
