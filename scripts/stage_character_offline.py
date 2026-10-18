@@ -42,6 +42,27 @@ def stage(snapshot):
                     'image_url':None,'artwork_status':'awaiting_permission_review'}
     return list(found.values())
 
+def coverage_report(snapshot):
+    """Measure actual snapshot coverage without treating images as approved."""
+    if not isinstance(snapshot,dict) or not isinstance(snapshot.get('data'),list):
+        raise ValueError('Expected snapshot object containing a data array')
+    staged=stage(snapshot)
+    from collections import Counter
+    series=Counter(row['series'] for row in staged)
+    ids=[row['source_key'] for row in staged]
+    metadata=snapshot.get('meta') or {}
+    return {
+        'snapshot_rows':len(snapshot['data']),
+        'reported_total':metadata.get('totalCharacters') if isinstance(metadata,dict) else None,
+        'staged_unique_characters':len(staged),
+        'duplicate_character_ids_in_staged':len(ids)-len(set(ids)),
+        'unique_primary_series':len(series),
+        'largest_series':series.most_common(15),
+        'eligible_for_live_import':0,
+        'reason':'Artwork permissions not reviewed; staged output is metadata only.',
+    }
+
+
 def convert(input_file,output_file):
     with open(input_file,encoding='utf-8') as src:
         result=stage(json.load(src))
@@ -54,5 +75,11 @@ if __name__=='__main__':
     ap=argparse.ArgumentParser(description=__doc__)
     ap.add_argument('snapshot')
     ap.add_argument('output')
+    ap.add_argument('--report',help='Write factual local snapshot coverage report')
     args=ap.parse_args()
     print('Review-only character metadata records:',convert(args.snapshot,args.output))
+    if args.report:
+        with open(args.snapshot,encoding='utf-8') as source:
+            summary=coverage_report(json.load(source))
+        Path(args.report).write_text(json.dumps(summary,ensure_ascii=False,indent=2)+'\\n',encoding='utf-8')
+        print('Coverage report:',args.report)
