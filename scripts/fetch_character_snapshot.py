@@ -13,6 +13,7 @@ from urllib.request import Request, urlopen
 
 URL="https://raw.githubusercontent.com/arda-/anime-character-offline-database/main/latest/characters.min.json"
 MAX_BYTES=80*1024*1024
+CHUNK_SIZE=1024*1024
 
 def download_snapshot(output, opener=urlopen, max_bytes=MAX_BYTES):
     if max_bytes<1:
@@ -24,9 +25,17 @@ def download_snapshot(output, opener=urlopen, max_bytes=MAX_BYTES):
         length=response.headers.get("Content-Length")
         if length and int(length)>max_bytes:
             raise ValueError("Snapshot exceeds download limit")
-        content=response.read(max_bytes+1)
-        if len(content)>max_bytes:
-            raise ValueError("Snapshot exceeds download limit")
+        chunks=[]
+        size=0
+        while True:
+            chunk=response.read(min(CHUNK_SIZE,max_bytes-size+1))
+            if not chunk:
+                break
+            size+=len(chunk)
+            if size>max_bytes:
+                raise ValueError("Snapshot exceeds download limit")
+            chunks.append(chunk)
+        content=b"".join(chunks)
     snapshot=json.loads(content.decode("utf-8"))
     if not isinstance(snapshot,dict) or not isinstance(snapshot.get("data"),list):
         raise ValueError("Unexpected character snapshot shape")
