@@ -25,7 +25,8 @@ def collection_text(user_id, page):
         cards,total = storage.get_cards(user_id,page,size=collection_ui.PAGE_SIZE)
     if not cards:
         return '🃏 Your harem is empty. Catch a character in a group!',None
-    rows = [f"{'⭐ ' if c['favorite'] else ''}• {c['name']} (x{c['owned_copies']}) · {c['rarity']} · Gen {c['generation']}\n  🎬 {c['series']} · 🆔 {c['code']}" for c in cards]
+    progress=storage.get_series_progress(user_id,[c['series'] for c in cards])
+    rows = [f"{'⭐ ' if c['favorite'] else ''}• {c['name']} (x{c['owned_copies']}) · {c['rarity']} · Gen {c['generation']}\n  🎬 {c['series']} ({progress[c['series']][0]}/{progress[c['series']][1]}) · 🆔 {c['code']}" if c['series'] in progress else f"• {c['name']} · {c['series']} · 🆔 {c['code']}" for c in cards]
     keyboard = collection_ui.page_markup(user_id,cards,page,total)
     return f'🃏 Global Harem · {total} cards\n\n'+'\n'.join(rows),keyboard
 
