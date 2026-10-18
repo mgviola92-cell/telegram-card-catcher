@@ -48,3 +48,20 @@ CREATE TABLE IF NOT EXISTS trade_offers (
 );
 CREATE INDEX IF NOT EXISTS pending_trades_receiver ON trade_offers(receiver_id,created_at DESC)
   WHERE status='pending';
+
+-- Catch attribution for per-group and daily leaderboards.
+ALTER TABLE owned_cards ADD COLUMN IF NOT EXISTS caught_chat_id BIGINT;
+CREATE INDEX IF NOT EXISTS owned_cards_group_catches
+  ON owned_cards(caught_chat_id, obtained_at DESC)
+  WHERE caught_chat_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS owned_cards_obtained_date ON owned_cards(obtained_at DESC);
+-- Ledger helps trace gifts/trades when support investigates an ownership dispute.
+CREATE TABLE IF NOT EXISTS card_transfers (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  card_id BIGINT NOT NULL REFERENCES owned_cards(id),
+  from_user_id BIGINT NOT NULL,
+  to_user_id BIGINT NOT NULL,
+  reason TEXT NOT NULL CHECK(reason IN ('gift','trade')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS card_transfers_card ON card_transfers(card_id,created_at DESC);
