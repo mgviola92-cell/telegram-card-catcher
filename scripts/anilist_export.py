@@ -86,9 +86,9 @@ def request_page(page, per_page=30, attempts=3):
             time.sleep(3 * (attempt + 1))
 
 
-def export(pages, output, delay=2.0):
-    if not 1 <= pages <= 500:
-        raise ValueError("pages must be 1..500")
+def export(pages, output, delay=2.0, start_page=1):
+    if not 1 <= pages <= 500 or not 1 <= start_page <= 10000:
+        raise ValueError("pages must be 1..500 and start_page 1..10000")
     destination = Path(output)
     existing = []
     if destination.exists():
@@ -96,7 +96,7 @@ def export(pages, output, delay=2.0):
         if not isinstance(existing,list):
             raise ValueError("Existing export must be a JSON array")
     catalog = {item["source_key"]: item for item in existing if isinstance(item,dict) and "source_key" in item}
-    for page in range(1, pages + 1):
+    for page in range(start_page, start_page + pages):
         result = request_page(page)
         for character in result.get("characters") or []:
             parsed = parse_character(character)
@@ -112,7 +112,7 @@ def export(pages, output, delay=2.0):
         staging.replace(destination)
         if not result.get("pageInfo", {}).get("hasNextPage"):
             break
-        if page < pages:
+        if page < start_page + pages - 1:
             time.sleep(max(1.5, delay))
     return len(catalog)
 
@@ -121,5 +121,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--pages", type=int, default=5)
     parser.add_argument("--out", default="data/anilist_review.json")
+    parser.add_argument("--start-page", type=int, default=1)
     args = parser.parse_args()
-    print("Metadata records exported for review:", export(args.pages, args.out))
+    print("Metadata records exported for review:", export(args.pages, args.out, start_page=args.start_page))
