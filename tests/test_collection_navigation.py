@@ -1,5 +1,5 @@
 import unittest
-from app.collection_ui import PAGE_SIZE,normalized_page,page_markup,card_markup
+from app.collection_ui import PAGE_SIZE,normalized_page,page_markup,card_markup,recent_markup
 
 class CollectionNavigationTests(unittest.TestCase):
     def test_requested_page_clamped_after_gift(self):
@@ -19,3 +19,14 @@ class CollectionNavigationTests(unittest.TestCase):
     def test_card_back_returns_to_same_page(self):
         callbacks=[button.callback_data for row in card_markup(101,'ABC123',2,False).keyboard for button in row]
         self.assertIn('cardback:101:2',callbacks)
+
+    def test_recent_navigation_has_owner_scoped_pages(self):
+        first=recent_markup(101,0,PAGE_SIZE+1).keyboard
+        buttons=[button.callback_data for row in first for button in row]
+        self.assertIn('recent:101:1',buttons)
+        self.assertNotIn('recent:101:-1',buttons)
+        self.assertNotIn('harem:101:1',buttons)
+        second=recent_markup(101,1,PAGE_SIZE+1).keyboard
+        callbacks=[button.callback_data for row in second for button in row]
+        self.assertIn('recent:101:0',callbacks)
+        self.assertNotIn('recent:101:2',callbacks)
