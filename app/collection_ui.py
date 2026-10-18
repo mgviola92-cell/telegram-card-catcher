@@ -37,3 +37,16 @@ def normalized_page(requested, total):
     """Keep page inside the current collection even after gifts/trades."""
     pages=max(1,(total+PAGE_SIZE-1)//PAGE_SIZE)
     return min(max(0,int(requested)),pages-1)
+
+def recent_markup(user_id, page, total):
+    """Text-only recent navigation; avoids photo uploads and extra card messages."""
+    kb=types.InlineKeyboardMarkup(row_width=3)
+    pages=max(1,(total+PAGE_SIZE-1)//PAGE_SIZE)
+    buttons=[]
+    if page>0:
+        buttons.append(types.InlineKeyboardButton('◀️ Back',callback_data=f'recent:{user_id}:{page-1}'))
+    buttons.append(types.InlineKeyboardButton(f'{page+1}/{pages}',callback_data='noop'))
+    if page+1<pages:
+        buttons.append(types.InlineKeyboardButton('Next ▶️',callback_data=f'recent:{user_id}:{page+1}'))
+    kb.row(*buttons)
+    return kb
