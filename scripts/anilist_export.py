@@ -1,10 +1,10 @@
 """AniList public character metadata batch exporter, offline-first and resumable.
 
-Exports JSON for the existing importer. Does NOT import into the database and
+This tool is for small, manual metadata review only; bulk harvesting is disabled.\nDoes NOT import into the database and
 does NOT download image bytes. Always check source terms and image permissions
 before running the generated catalog in a public bot.
 
-Usage: python -m scripts.anilist_export --pages 5 --out data/anilist_review.json
+Usage: python -m scripts.anilist_export --pages 1 --out data/anilist_review.json
 """
 import argparse
 import json
@@ -61,7 +61,7 @@ def parse_character(obj):
     }
 
 
-def request_page(page, per_page=30, attempts=3):
+def request_page(page, per_page=10, attempts=3):
     payload = json.dumps({"query": QUERY, "variables": {
         "page": page, "perPage": per_page}}).encode()
     for attempt in range(attempts):
@@ -87,8 +87,8 @@ def request_page(page, per_page=30, attempts=3):
 
 
 def export(pages, output, delay=2.0, start_page=1):
-    if not 1 <= pages <= 500 or not 1 <= start_page <= 10000:
-        raise ValueError("pages must be 1..500 and start_page 1..10000")
+    if pages != 1 or not 1 <= start_page <= 10000:
+        raise ValueError("Bulk export is disabled. Review one page (10 records) at a time.")
     destination = Path(output)
     existing = []
     if destination.exists():
@@ -119,7 +119,7 @@ def export(pages, output, delay=2.0, start_page=1):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--pages", type=int, default=5)
+    parser.add_argument("--pages", type=int, default=1)
     parser.add_argument("--out", default="data/anilist_review.json")
     parser.add_argument("--start-page", type=int, default=1)
     args = parser.parse_args()
