@@ -11,7 +11,7 @@ import tempfile
 from pathlib import Path
 from urllib.request import Request, urlopen
 
-URL="https://raw.githubusercontent.com/arda-/anime-character-offline-database/main/latest/characters.min.json"
+URL="https://raw.githubusercontent.com/arda-/anime-character-offline-database/prod/latest/characters.min.json"
 MAX_BYTES=80*1024*1024
 CHUNK_SIZE=1024*1024
 
