@@ -32,6 +32,25 @@ def get_cards(user_id, page=0, size=8):
         return cards, total
 
 
+
+def get_series_progress(user_id, series_names):
+    """Unique collected characters / enabled catalog characters, by series."""
+    names=sorted(set(series_names))
+    if not names:
+        return {}
+    with connect() as db:
+        rows=db.execute("""SELECT c.series,
+            count(*)::integer AS available,
+            count(*) FILTER (WHERE EXISTS (
+                SELECT 1 FROM owned_cards o
+                WHERE o.owner_id=%s AND o.character_id=c.id
+            ))::integer AS collected
+            FROM characters c
+            WHERE c.enabled=true AND c.series=ANY(%s)
+            GROUP BY c.series""",(user_id,names)).fetchall()
+    return {row['series']:(row['collected'],row['available']) for row in rows}
+
+
 def get_card(code):
     with connect() as db:
         return db.execute("""SELECT o.code,o.character_id,o.variant_id,o.generation,o.owner_id,o.favorite,c.name,c.series,COALESCE(v.rarity,c.rarity) AS rarity,COALESCE(v.image_url,c.image_url) AS image_url,CASE WHEN o.variant_id IS NULL THEN c.telegram_file_id ELSE v.telegram_file_id END AS telegram_file_id
