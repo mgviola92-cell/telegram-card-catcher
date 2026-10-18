@@ -7,6 +7,9 @@ The script validates the entire batch before changing the database.
 import json
 import re
 import sys
+import argparse
+from urllib.parse import urlsplit
+import ipaddress
 from app.storage import connect, RARITIES
 
 CATEGORIES = {'anime','manga','manhwa','webtoon','game','original_ai','other'}
@@ -29,8 +32,19 @@ def validate(items):
             if not isinstance(item.get(field),str) or not 1<=len(item[field].strip())<=150:
                 raise ValueError(f'Item {index} has invalid {field}')
         url=item.get('image_url')
-        if not isinstance(url,str) or not url.startswith('https://') or len(url)>2048:
+        if not isinstance(url,str) or len(url)>2048:
             raise ValueError(f'Item {index} needs an HTTPS image_url')
+        parsed=urlsplit(url)
+        hostname=parsed.hostname or ''
+        try:
+            ipaddress.ip_address(hostname)
+            unsafe=True
+        except ValueError:
+            unsafe=False
+        if (parsed.scheme!='https' or not hostname or parsed.username or parsed.password
+                or unsafe or hostname=='localhost' or hostname.endswith('.localhost')
+                or parsed.port not in (None,443)):
+            raise ValueError(f'Item {index} has an unsafe image_url')
         rarity=item.get('rarity','Common')
         category=item.get('category','anime')
         aliases=item.get('aliases',[])
@@ -63,8 +77,15 @@ def import_batch(items):
 
 
 if __name__=='__main__':
-    if len(sys.argv)!=2:
-        raise SystemExit('Usage: python -m scripts.import_characters <json_file>')
-    with open(sys.argv[1],encoding='utf-8') as f:
+    parser=argparse.ArgumentParser(description='Review and import approved character metadata')
+    parser.add_argument('json_file')
+    parser.add_argument('--apply',action='store_true',help='Write to PostgreSQL; default only validates')
+    args=parser.parse_args()
+    with open(args.json_file,encoding='utf-8') as f:
         data=json.load(f)
-    print('Characters imported:',import_batch(data))
+    rows=validate(data)
+    print(f'Validated {len(rows)} character records.')
+    if args.apply:
+        print('Characters imported:',import_batch(data))
+    else:
+        print('Dry run only. Review image rights, then use --apply to import.')
