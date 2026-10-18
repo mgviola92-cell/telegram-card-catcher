@@ -84,9 +84,13 @@ if __name__=='__main__':
     parser=argparse.ArgumentParser(description='Review and import approved character metadata')
     parser.add_argument('json_file')
     parser.add_argument('--apply',action='store_true',help='Write to PostgreSQL; default only validates')
+    parser.add_argument('--allow-warnings',action='store_true',help='Override catalog duplicate/unknown-series warnings after review')
     args=parser.parse_args()
     with open(args.json_file,encoding='utf-8') as f:
         data=json.load(f)
+    from scripts.catalog_quality import require_approval
+    result=require_approval(data,allow_warnings=args.allow_warnings)
+    print(json.dumps(result,ensure_ascii=False,indent=2))
     rows=validate(data)
     print(f'Validated {len(rows)} character records.')
     if args.apply:
