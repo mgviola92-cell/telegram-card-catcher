@@ -33,8 +33,17 @@ def release_failed_update(update_id,token):
             WHERE update_id=%s AND status='processing' AND lease_token=%s""",
                    (update_id,token))
 
-def prune_updates():
+def prune_updates(batch_size=1000):
+    """Prune a bounded batch; keep recent done updates and active retry leases."""
+    if type(batch_size) is not int or not 1 <= batch_size <= 5000:
+        raise ValueError('batch_size must be 1..5000')
     with connect() as db:
-        db.execute("""DELETE FROM processed_updates
-            WHERE (status='done' AND processed_at < now()-interval '3 days')
-               OR (status='processing' AND processed_at < now()-interval '7 days')""")
+        rows=db.execute("""WITH stale AS (
+                SELECT update_id FROM processed_updates
+                WHERE (status='done' AND processed_at < now()-interval '3 days')
+                   OR (status='processing' AND processed_at < now()-interval '7 days')
+                ORDER BY processed_at LIMIT %s
+            ) DELETE FROM processed_updates p USING stale
+            WHERE p.update_id=stale.update_id
+            RETURNING p.update_id""",(batch_size,)).fetchall()
+        return len(rows)
