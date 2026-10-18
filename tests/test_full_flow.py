@@ -132,3 +132,15 @@ class FullFlowTests(unittest.TestCase):
                 FROM group_settings WHERE chat_id=%s""",(self.chat,)).fetchone()
         self.assertIsNone(row['active_character_id'])
         self.assertIsNone(row['active_variant_id'])
+
+    def test_successful_catch_message_recorded_for_retry(self):
+        with self.connect() as db:
+            db.execute('UPDATE characters SET enabled=false WHERE id=ANY(%s)',(self.cids[1:],))
+        spawned=storage.try_spawn(self.chat,1)
+        caught=storage.claim(self.chat,701,spawned['name'],message_id=987654)
+        self.assertIsNotNone(caught)
+        self.assertTrue(storage.message_already_caught(self.chat,987654))
+        self.assertFalse(storage.message_already_caught(self.chat,987655))
+        self.assertFalse(storage.message_already_caught(self.chat+1,987654))
+        self.assertIsNone(storage.claim(self.chat,702,spawned['name'],message_id=987654))
+        self.assertEqual(storage.get_cards(701)[1],1)
