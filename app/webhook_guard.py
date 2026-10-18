@@ -21,3 +21,9 @@ def begin_update(update_id):
 def prune_updates():
     with connect() as db:
         db.execute("DELETE FROM processed_updates WHERE processed_at < now()-interval '3 days'")
+
+
+def release_failed_update(update_id):
+    """Reset the dedup record after an exception so Telegram can redeliver."""
+    with connect() as db:
+        db.execute('DELETE FROM processed_updates WHERE update_id=%s', (update_id,))
