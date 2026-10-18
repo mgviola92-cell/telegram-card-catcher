@@ -82,3 +82,6 @@ CREATE TABLE IF NOT EXISTS character_variants (
 ALTER TABLE owned_cards ADD COLUMN IF NOT EXISTS variant_id BIGINT REFERENCES character_variants(id);
 CREATE INDEX IF NOT EXISTS variants_by_character ON character_variants(character_id, enabled);
 CREATE INDEX IF NOT EXISTS owned_cards_variant ON owned_cards(variant_id);
+
+-- Active variant is saved with the spawn so catches preserve exact artwork.
+ALTER TABLE group_settings ADD COLUMN IF NOT EXISTS active_variant_id BIGINT REFERENCES character_variants(id);
