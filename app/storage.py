@@ -94,6 +94,19 @@ def cache_image(character_id, file_id, variant_id=None, expected_url=None):
         return bool(result)
 
 
+def clear_cached_image(character_id, variant_id, expected_file_id):
+    """Remove failed Telegram cache ID only if it has not changed."""
+    with connect() as db:
+        if variant_id is not None:
+            db.execute("""UPDATE character_variants SET telegram_file_id=NULL
+                WHERE id=%s AND character_id=%s AND telegram_file_id=%s""",
+                (variant_id, character_id, expected_file_id))
+        else:
+            db.execute("""UPDATE characters SET telegram_file_id=NULL
+                WHERE id=%s AND telegram_file_id=%s""",
+                (character_id, expected_file_id))
+
+
 def clear_spawn(chat_id, character_id):
     with connect() as db:
         db.execute('UPDATE group_settings SET active_character_id=NULL,active_variant_id=NULL WHERE chat_id=%s AND active_character_id=%s',
