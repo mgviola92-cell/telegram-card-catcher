@@ -24,5 +24,5 @@ class SpawnPhotoEligibilityTests(unittest.TestCase):
         self.assertIsNone(try_spawn(-100,1,10))
         queries=[call.args[0] for call in cur.execute.call_args_list]
         candidate=next(q for q in queries if 'SELECT * FROM characters' in q)
-        self.assertIn("image_url LIKE 'https://%'",candidate)
+        self.assertIn("image_url LIKE 'https://%%'",candidate)
         self.assertIn("NULLIF(btrim(telegram_file_id),'')",candidate)
