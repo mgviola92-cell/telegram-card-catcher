@@ -11,7 +11,7 @@ import json
 import re
 from pathlib import Path
 
-TABLE=re.compile(r'^\\s*(?:INSERT\\s+INTO|CREATE\\s+TABLE)\\s+(?:\\x60?[A-Za-z0-9_]+\\x60?\\.)?\\x60?([A-Za-z0-9_]+)\\x60?',re.I)
+TABLE=re.compile(r'^\s*(?:INSERT\s+INTO|CREATE\s+TABLE)\s+`?([A-Za-z0-9_]+)`?',re.I)
 
 def summarize_file(path):
     path=Path(path)
