@@ -37,3 +37,26 @@ class QualityGateTests(unittest.TestCase):
         b=item('original:two',name='Second',url='https://example.org/second.png')
         a['series']=b['series']='One Piece'
         self.assertTrue(report([a,b])['passed'])
+
+    def test_alias_conflict_in_same_series_blocks_batch(self):
+        a=item('anime:one',name='Alpha')
+        a['aliases']=['The Captain']
+        b=item('anime:two',name='The Captain',url='https://example.org/second.png')
+        result=report([a,b])
+        self.assertFalse(result['passed'])
+        self.assertIn('demo / the captain',result['alias_conflicts'])
+        with self.assertRaises(ValueError):
+            require_approval([a,b])
+
+    def test_alias_variants_on_same_character_are_safe(self):
+        a=item('anime:one',name='Alpha')
+        a['aliases']=['alpha','  ALPHA ', 'Captain']
+        self.assertTrue(report([a])['passed'])
+
+    def test_same_alias_across_different_series_is_not_a_conflict(self):
+        a=item('anime:one',name='Alpha')
+        a['aliases']=['Captain']
+        b=item('anime:two',name='Beta',url='https://example.org/second.png')
+        b['series']='Another Show'
+        b['aliases']=['captain']
+        self.assertTrue(report([a,b])['passed'])
