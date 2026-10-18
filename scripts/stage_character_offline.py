@@ -81,5 +81,5 @@ if __name__=='__main__':
     if args.report:
         with open(args.snapshot,encoding='utf-8') as source:
             summary=coverage_report(json.load(source))
-        Path(args.report).write_text(json.dumps(summary,ensure_ascii=False,indent=2)+'\\n',encoding='utf-8')
+        Path(args.report).write_text(json.dumps(summary,ensure_ascii=False,indent=2)+chr(10),encoding='utf-8')
         print('Coverage report:',args.report)
