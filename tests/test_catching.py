@@ -15,3 +15,13 @@ class CatchingTests(unittest.TestCase):
         result=catch_result(card,SimpleNamespace(first_name='Tester'))
         for fragment in ['Tester','Sample Hero','Demo Series','Rare','Gen 2','ABC123','/harem']:
             self.assertIn(fragment,result)
+
+    def test_result_shows_collection_total_when_present(self):
+        card=dict(name='Demo',series='Series',rarity='Rare',generation=1,code='ABC',collection_total=17)
+        result=catch_result(card,SimpleNamespace(first_name='Tester'))
+        self.assertIn('Your collection: 17 cards',result)
+
+    def test_result_without_total_remains_compatible(self):
+        card=dict(name='Demo',series='Series',rarity='Rare',generation=1,code='ABC')
+        result=catch_result(card,SimpleNamespace(first_name='Tester'))
+        self.assertNotIn('Your collection:',result)
