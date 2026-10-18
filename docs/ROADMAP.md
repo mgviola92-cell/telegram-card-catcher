@@ -15,3 +15,18 @@ URL send first, file_id caching on Telegram, Pillow-generated cards on demand, c
 
 ## Release gate
 All changes on feature branches; Python unit and DB integration checks; no merge into main until review. Live Telegram test needed for concurrency, admin permissions and callback UX. Never assume a successful CI unit test proves full bot operation.
+
+## Implemented on development branch only (not live)
+- Rate-limited AniList JSON metadata exporter with manual review gate; no live import or mass image scraping.
+- Catalog variant schema and variant metadata importer.
+- Optional variant artwork selection on group spawn; captured card retains its exact variant_id.
+- /showcase sends recent/featured artwork through Telegram URL or cached file_id.
+- Atomic gift/trade, transfer audit, group and global rankings.
+- Unit tests and Python syntax CI. Real database schema migration and network/API testing are still required.
+
+## Known release blockers
+- Validate full migration on a Neon test database before main merge.
+- Verify Telegram API photo behavior for alternate art (variant-specific file_id caching pending).
+- Avoid mass imports unless source image use is permitted.
+- Verify webhook retry/idempotency semantics (an update recorded before handling can be lost on crash).
+- Confirm rarity/spawn probability balancing; 25% artwork-variant selection is provisional.
