@@ -31,6 +31,25 @@ def collection_text(user_id, page):
     return f'🃏 Global Harem · {total} cards\n\n'+'\n'.join(rows),keyboard
 
 
+
+def recent_text(user_id, page):
+    cards,total=storage.get_cards(user_id,page,size=collection_ui.PAGE_SIZE)
+    page=collection_ui.normalized_page(page,total)
+    if page*collection_ui.PAGE_SIZE>=total and total:
+        cards,total=storage.get_cards(user_id,page,size=collection_ui.PAGE_SIZE)
+    if not cards:
+        return '🕒 No collected characters yet. Catch one in a group!',None
+    progress=storage.get_series_progress(user_id,[c['series'] for c in cards])
+    rows=[]
+    for c in cards:
+        ratio=progress.get(c['series'])
+        series=f"{c['series']} ({ratio[0]}/{ratio[1]})" if ratio else c['series']
+        rows.append(f"🃏 {c['name']} (x{c['owned_copies']})\n"
+                    f"💎 {c['rarity']} · Gen {c['generation']}\n"
+                    f"🎬 {series}\n🆔 {c['code']}")
+    return f"🕒 Recent Characters · {total} cards\n\n"+'\n\n'.join(rows),collection_ui.recent_markup(user_id,page,total)
+
+
 @bot.message_handler(commands=['start'])
 def start_command(msg):
     bot.send_message(msg.chat.id, welcome.WELCOME_TEXT,
@@ -67,9 +86,16 @@ def welcome_menu_callback(q):
     bot.answer_callback_query(q.id)
 
 
-@bot.message_handler(commands=['harem','collection','recent'])
+@bot.message_handler(commands=['harem','collection'])
 def harem(msg):
     text,keyboard = collection_text(msg.from_user.id,0)
+    bot.reply_to(msg,text,reply_markup=keyboard)
+
+
+
+@bot.message_handler(commands=['recent'])
+def recent(msg):
+    text,keyboard=recent_text(msg.from_user.id,0)
     bot.reply_to(msg,text,reply_markup=keyboard)
 
 
@@ -92,20 +118,20 @@ def showcase(msg):
     bot.reply_to(msg,caption)
 
 
-@bot.callback_query_handler(func=lambda q: q.data.startswith('harem:') or q.data=='noop')
+@bot.callback_query_handler(func=lambda q: q.data.startswith(('harem:','recent:')) or q.data=='noop')
 def turn_page(q):
     if q.data=='noop':
         bot.answer_callback_query(q.id)
         return
     try:
-        _,owner,page = q.data.split(':')
+        mode,owner,page = q.data.split(':')
         if int(owner)!=q.from_user.id:
             bot.answer_callback_query(q.id,'This is not your collection.',show_alert=True)
             return
         page = int(page)
         if page<0 or page>99999:
             raise ValueError
-        text,keyboard = collection_text(q.from_user.id,page)
+        text,keyboard = (recent_text(q.from_user.id,page) if mode=='recent' else collection_text(q.from_user.id,page))
         try:
             bot.edit_message_text(text,q.message.chat.id,q.message.message_id,reply_markup=keyboard)
         except telebot.apihelper.ApiTelegramException as exc:
