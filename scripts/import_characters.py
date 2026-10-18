@@ -41,9 +41,13 @@ def validate(items):
             unsafe=True
         except ValueError:
             unsafe=False
+        try:
+            port=parsed.port
+        except ValueError:
+            raise ValueError(f'Item {index} has an invalid URL port')
         if (parsed.scheme!='https' or not hostname or parsed.username or parsed.password
                 or unsafe or hostname=='localhost' or hostname.endswith('.localhost')
-                or parsed.port not in (None,443)):
+                or port not in (None,443)):
             raise ValueError(f'Item {index} has an unsafe image_url')
         rarity=item.get('rarity','Common')
         category=item.get('category','anime')
