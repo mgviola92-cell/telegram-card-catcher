@@ -1,6 +1,6 @@
 """AniList public character metadata batch exporter, offline-first and resumable.
 
-This tool is for small, manual metadata review only; bulk harvesting is disabled.\nDoes NOT import into the database and
+This tool is for small, manual metadata review only; bulk harvesting is disabled.\nUnknown/adult media classifications are excluded; review all artwork manually.\nDoes NOT import into the database and
 does NOT download image bytes. Always check source terms and image permissions
 before running the generated catalog in a public bot.
 
@@ -21,7 +21,7 @@ QUERY = """query ($page: Int!, $perPage: Int!) {
       id name { full alternative }
       image { large }
       media(perPage: 1, sort: POPULARITY_DESC) {
-        nodes { title { romaji english } type }
+        nodes { title { romaji english } type isAdult }
       }
     }
   }
@@ -43,6 +43,8 @@ def parse_character(obj):
     category = "anime"
     if media:
         node = media[0]
+        if node.get('isAdult') is not False:
+            return None
         title = node.get("title") or {}
         series = title.get("english") or title.get("romaji") or series
         if node.get("type") == "MANGA":
