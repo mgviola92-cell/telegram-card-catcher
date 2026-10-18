@@ -65,3 +65,20 @@ CREATE TABLE IF NOT EXISTS card_transfers (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS card_transfers_card ON card_transfers(card_id,created_at DESC);
+
+-- Variant-aware artwork catalog: multiple art versions per character.
+CREATE TABLE IF NOT EXISTS character_variants (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  character_id BIGINT NOT NULL REFERENCES characters(id),
+  variant_key TEXT NOT NULL,
+  label TEXT NOT NULL,
+  image_url TEXT NOT NULL,
+  telegram_file_id TEXT,
+  rarity TEXT NOT NULL DEFAULT 'Common',
+  spawn_weight INTEGER NOT NULL DEFAULT 100 CHECK(spawn_weight >= 0),
+  enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  UNIQUE(character_id, variant_key)
+);
+ALTER TABLE owned_cards ADD COLUMN IF NOT EXISTS variant_id BIGINT REFERENCES character_variants(id);
+CREATE INDEX IF NOT EXISTS variants_by_character ON character_variants(character_id, enabled);
+CREATE INDEX IF NOT EXISTS owned_cards_variant ON owned_cards(variant_id);
