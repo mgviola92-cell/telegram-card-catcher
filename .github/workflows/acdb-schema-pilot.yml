@@ -18,7 +18,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Download bounded official metadata dumps and inspect schema only
+      - name: Download bounded official metadata dumps; measure schemas and SQL tuple totals
         shell: bash
         run: |
           set -euo pipefail
