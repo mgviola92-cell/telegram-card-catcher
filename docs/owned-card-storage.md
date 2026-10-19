@@ -36,10 +36,10 @@ TEST_DATABASE_URL=postgresql://test_runner:password@localhost:5432/cardkout_test
 
 | Simulated workload | With duplicate index | Without duplicate | Index savings | Without duplicate / card |
 | --- | ---: | ---: | ---: | ---: |
-| 100,000 owned cards; 100 shared characters | 38,551,552 bytes | 33,816,576 bytes | 4,734,976 bytes | 338.17 bytes |
+| 100,000 owned cards; 100 shared characters | 36,995,072 bytes | 33,816,576 bytes | 3,178,496 bytes | 338.17 bytes |
 | 1,000,000 owned cards; 100 shared characters | 385,359,872 bytes | 353,796,096 bytes | 31,563,776 bytes | 353.80 bytes |
 
-Sources: GitHub Actions runs 39274470832 (100k) and 39274862836 (1 million). Both ran on disposable PostgreSQL 16, with all other tables excluded from the measurements. The 1-million-card experiment was intentionally a one-off scale check; regular CI should remain at 100k.
+Sources: GitHub Actions runs 39275236452 (100k, fresh new schema + simulated old index) and 39274862836 (1 million, fresh new schema + simulated old index). Both ran on disposable PostgreSQL 16; all other tables are excluded from the measurements. A prior 100k run 39274470832, when the legacy index was created before inserting cards, found 4,734,976 bytes of savings rather than 3,178,496 bytes. The difference is attributable to the index build/load pattern: duplicate-index size is not a universal constant. The 1-million-card experiment was intentionally a one-off scale check; regular CI remains at 100k.
 
 These are **real PostgreSQL relation/index sizes for synthetic test rows**,
 not actual production Neon measured row sizes. They omit character/variant
