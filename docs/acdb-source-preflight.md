@@ -18,11 +18,22 @@ https://github.com/mgviola92-cell/telegram-card-catcher/actions/runs/39277429129
 | publishers.sql.gz | 2,301,609 | 8,260,415 | 8 |
 | assignments.sql.gz | 594,684 | 3,302,968 | 4 |
 
-The counts above refer to **INSERT statements**, not individual character
-records or deduplicated character identities. MySQL dumps use extended
-multi-row INSERT statements. Do not conflate this with live bot cards.
-Actual character/assignment tuple counting was added separately and
-must be confirmed from its own successful run before publishing numbers.
+The above figures are SQL INSERT **statements**, not character records.
+A newer successful full-source audit counted SQL inserted tuples in the real
+archives, with a bounded stream parser:
+
+| Archive / table | Raw inserted SQL tuples | Verified unique records | Approved/spawnable |
+| --- | ---: | --- | ---: |
+| characters | **148,604** | Not yet established | 0 |
+| publishers (titles) | **14,664** | Not yet established | 0 |
+| assignments (character-title relations) | **221,411** | Not yet established | 0 |
+
+Evidence: https://github.com/mgviola92-cell/telegram-card-catcher/actions/runs/39277834977
+The inserted-tuple totals are *real measured aggregates*, not mock counts.
+They do NOT establish distinct character IDs, allowed general-audience
+records, rights to names/data, character-to-title matching, image coverage,
+or a live import. **The 148,604 must not be added to the separate 4,666
+metadata count** until cross-source duplicates are actually measured.
 
 ### Verified table/relationship fields (from actual SQL DDL)
 - `characters`: `id`, `romji`, `japanese`, `publisher`,
