@@ -8,6 +8,7 @@ from app import storage
 from app.webhook_guard import begin_update
 from app import welcome
 from app.owned_media import send_owned_card
+from app import card_ui
 
 logging.basicConfig(level=logging.INFO)
 TOKEN = os.environ['BOT_TOKEN']
@@ -19,23 +20,13 @@ storage.initialize()
 
 
 def collection_text(user_id, page):
-    cards,total = storage.get_cards(user_id,page)
-    pages = max(1,(total+7)//8)
-    page = min(max(0,page),pages-1)
-    if page*8>=total and total:
-        cards,total = storage.get_cards(user_id,page)
-    if not cards:
-        return '🃏 Your harem is empty. Catch a character in a group!',None
-    rows = [f"{'⭐ ' if c['favorite'] else ''}• {c['name']} · {c['rarity']} · Gen {c['generation']}\n  🆔 {c['code']}" for c in cards]
-    keyboard = types.InlineKeyboardMarkup()
-    buttons = []
-    if page:
-        buttons.append(types.InlineKeyboardButton('◀️',callback_data=f'harem:{user_id}:{page-1}'))
-    buttons.append(types.InlineKeyboardButton(f'{page+1}/{pages}',callback_data='noop'))
-    if page+1<pages:
-        buttons.append(types.InlineKeyboardButton('▶️',callback_data=f'harem:{user_id}:{page+1}'))
-    keyboard.row(*buttons)
-    return f'🃏 Global Harem · {total} cards\n\n'+'\n'.join(rows),keyboard
+    cards, total = storage.get_cards(user_id, page)
+    pages = max(1, (total + card_ui.PAGE_SIZE - 1) // card_ui.PAGE_SIZE)
+    page = min(max(0, page), pages - 1)
+    if page * card_ui.PAGE_SIZE >= total and total:
+        cards, total = storage.get_cards(user_id, page)
+    return (card_ui.collection_text(cards, total, page),
+            card_ui.collection_keyboard(user_id, cards, page, total))
 
 
 @bot.message_handler(commands=['start'])
@@ -67,7 +58,8 @@ def welcome_menu_callback(q):
     # Edit existing menu where possible, rather than flooding the chat.
     try:
         bot.edit_message_text(text, q.message.chat.id, q.message.message_id,
-                              reply_markup=keyboard)
+                              reply_markup=keyboard,
+                              parse_mode='HTML' if action == 'harem' else None)
     except telebot.apihelper.ApiTelegramException as exc:
         if 'message is not modified' not in str(exc).lower():
             raise
@@ -77,7 +69,7 @@ def welcome_menu_callback(q):
 @bot.message_handler(commands=['harem','collection','recent'])
 def harem(msg):
     text,keyboard = collection_text(msg.from_user.id,0)
-    bot.reply_to(msg,text,reply_markup=keyboard)
+    bot.reply_to(msg,text,reply_markup=keyboard,parse_mode='HTML')
 
 
 @bot.callback_query_handler(func=lambda q: q.data.startswith('harem:') or q.data=='noop')
@@ -94,10 +86,61 @@ def turn_page(q):
         if page<0 or page>99999:
             raise ValueError
         text,keyboard = collection_text(q.from_user.id,page)
-        bot.edit_message_text(text,q.message.chat.id,q.message.message_id,reply_markup=keyboard)
+        bot.edit_message_text(text,q.message.chat.id,q.message.message_id,reply_markup=keyboard,parse_mode='HTML')
         bot.answer_callback_query(q.id)
     except (ValueError,TypeError):
         bot.answer_callback_query(q.id,'Invalid page.')
+
+
+@bot.callback_query_handler(
+    func=lambda q: bool(q.data) and q.data.startswith(('cardview:','cardfav:','cardclose:')))
+def card_actions(q):
+    try:
+        action, owner, code = q.data.split(':')
+        if int(owner) != q.from_user.id or len(code) > 32:
+            bot.answer_callback_query(q.id,'This is not your card.',show_alert=True)
+            return
+        row = storage.get_card(code)
+        if not row or row['owner_id'] != q.from_user.id:
+            bot.answer_callback_query(q.id,'Card is no longer in your collection.',show_alert=True)
+            return
+        if action == 'cardclose':
+            try:
+                bot.delete_message(q.message.chat.id,q.message.message_id)
+            except telebot.apihelper.ApiTelegramException:
+                bot.answer_callback_query(q.id,'Could not close this card.')
+                return
+            bot.answer_callback_query(q.id)
+            return
+        if action == 'cardfav':
+            enabled = not row['favorite']
+            if storage.set_favorites(q.from_user.id,[row['code']],enabled) != 1:
+                bot.answer_callback_query(q.id,'Card could not be updated.',show_alert=True)
+                return
+            card = dict(row, favorite=enabled)
+            markup = card_ui.open_card_keyboard(owner,code,enabled)
+            if q.message.content_type == 'photo':
+                bot.edit_message_caption(card_ui.owned_caption(card),q.message.chat.id,
+                                         q.message.message_id,reply_markup=markup,
+                                         parse_mode='HTML')
+            else:
+                bot.edit_message_text(card_ui.owned_caption(card),q.message.chat.id,
+                                      q.message.message_id,reply_markup=markup,
+                                      parse_mode='HTML')
+            bot.answer_callback_query(q.id,'Favorite updated ⭐')
+            return
+        if action != 'cardview':
+            bot.answer_callback_query(q.id,'Invalid card action.',show_alert=True)
+            return
+        caption = card_ui.owned_caption(row)
+        markup = card_ui.open_card_keyboard(owner,code,row['favorite'])
+        if not send_owned_card(bot,storage,q.message.chat.id,row,caption=caption,
+                               parse_mode='HTML',reply_markup=markup):
+            bot.send_message(q.message.chat.id,caption,parse_mode='HTML',
+                             reply_markup=markup)
+        bot.answer_callback_query(q.id,'Card opened!')
+    except (ValueError,TypeError,IndexError):
+        bot.answer_callback_query(q.id,'Invalid card request.',show_alert=True)
 
 
 @bot.message_handler(commands=['check','view'])
@@ -110,11 +153,12 @@ def check(msg):
     if not row:
         bot.reply_to(msg,'Card not found.')
         return
-    caption=f"🃏 {row['name']} — {row['series']}\n{row['rarity']} · Gen {row['generation']}\n🆔 {row['code']}"
-    if send_owned_card(bot, storage, msg.chat.id, row, caption=caption):
+    caption=card_ui.owned_caption(row)
+    markup=card_ui.open_card_keyboard(row['owner_id'],row['code'],row['favorite'])
+    if send_owned_card(bot,storage,msg.chat.id,row,caption=caption,
+                       parse_mode='HTML',reply_markup=markup):
         return
-    bot.reply_to(msg,caption)
-
+    bot.reply_to(msg,caption,parse_mode='HTML',reply_markup=markup)
 
 
 
@@ -170,11 +214,11 @@ def changetime(msg):
 
 
 def send_spawn(chat_id,char):
-    caption=f"✨ A character appeared!\nSeries: {char['series']} · {char['rarity']}\nGuess the name!"
+    caption=card_ui.spawn_caption(char)
     sources=[char.get('telegram_file_id'),char.get('image_url')]
     for source in filter(None,sources):
         try:
-            message=bot.send_photo(chat_id,source,caption=caption)
+            message=bot.send_photo(chat_id,source,caption=caption,parse_mode='HTML')
             if message.photo and not char.get('telegram_file_id'):
                 storage.cache_image(char['id'],message.photo[-1].file_id)
             return
@@ -191,7 +235,9 @@ def activity(msg):
         return
     caught=storage.claim(msg.chat.id,msg.from_user.id,msg.text)
     if caught:
-        bot.reply_to(msg,f"🎉 {caught['name']} caught!\n{caught['rarity']} · Gen {caught['generation']}\n🆔 {caught['code']}")
+        bot.reply_to(msg,card_ui.catch_text(caught,msg.from_user.first_name),
+                     parse_mode='HTML',
+                     reply_markup=card_ui.catch_keyboard(msg.from_user.id,caught['code']))
         return
     spawned=storage.try_spawn(msg.chat.id,SPAWN_MESSAGES)
     if spawned:
