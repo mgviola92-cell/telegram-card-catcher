@@ -8,6 +8,7 @@ rights to use that artwork, a suitable title, or a spawn-ready character.
 import argparse
 from collections import Counter
 import gzip
+import hashlib
 import json
 from pathlib import Path
 import re
@@ -38,6 +39,14 @@ class FieldPresence:
         self.row_present=set()
         self.rows=0
         self.counters=Counter()
+        # Hold fixed-length fingerprints for diversity COUNTS only; never output
+        # or persist source filenames/URLs (and never request any artwork).
+        self.media_indices={name:index for name,index in self.indices.items()
+                            if name in ('image','thumb')}
+        self.media_hashes={name:set() for name in self.media_indices}
+        self.media_raw=bytearray()
+        self.media_overflow=False
+        self.media_oversized=Counter()
         self.done=False
 
     def _finish_field(self):
@@ -52,6 +61,15 @@ class FieldPresence:
             if self.field_index==index and present:
                 self.row_present.add(name)
                 self.counters['present_'+name]+=1
+        for name,index in self.media_indices.items():
+            if self.field_index == index and present:
+                if self.media_overflow:
+                    self.media_oversized[name]+=1
+                else:
+                    self.media_hashes[name].add(
+                        hashlib.blake2b(self.media_raw,digest_size=16).digest())
+        self.media_raw.clear()
+        self.media_overflow=False
         self.field_index+=1
         self.quoted=False
         self.value_present=False
@@ -80,6 +98,13 @@ class FieldPresence:
         for value in data:
             if self.done:
                 break
+            if self.depth==1 and self.field_index in self.media_indices.values():
+                # Ignore SQL field delimiters but preserve commas inside quotes.
+                if self.quote is not None or self.escape or value not in (44,41):
+                    if len(self.media_raw)<2048:
+                        self.media_raw.append(value)
+                    else:
+                        self.media_overflow=True
             if self.escape:
                 self.escape=False
                 if self.depth==1 and value not in (9,10,13,32):
@@ -126,7 +151,11 @@ class FieldPresence:
                 'characters_with_name_hint':self.counters['has_name_hint'],
                 'characters_with_artwork_pointer_hint':self.counters['has_artwork_pointer_hint'],
                 'characters_with_both_hints':self.counters['has_name_and_artwork_pointer_hints'],
-                'titles_with_name_hint':self.counters['has_title_name_hint']}
+                'titles_with_name_hint':self.counters['has_title_name_hint'],
+                'distinct_media_pointer_hints':{
+                    name:len(fingerprints) for name,fingerprints in self.media_hashes.items()},
+                'oversized_media_pointers_excluded_from_diversity':{
+                    name:self.media_oversized[name] for name in self.media_indices}}
 
 
 def inspect_coverage(path, table, max_uncompressed_bytes=MAX_BYTES):
