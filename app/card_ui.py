@@ -79,7 +79,7 @@ def spawn_caption(character):
         f"💎 <b>RARITY:</b> {rarity_label(character.get('rarity'))}\n\n"
         "🔎 <b>GUESS THE NAME</b>\n"
         "💬 <i>First correct answer wins this card.</i>\n"
-        "⏳ <i>15-minute catch window</i>"
+        "⏳ <i>15 minutes to catch</i>"
     )
 
 
