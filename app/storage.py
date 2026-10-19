@@ -33,7 +33,7 @@ def get_cards(user_id, page=0, size=8):
 
 def get_card(code):
     with connect() as db:
-        return db.execute("""SELECT o.code,o.generation,o.owner_id,c.name,c.series,c.rarity,c.image_url,c.telegram_file_id
+        return db.execute("""SELECT o.code,o.character_id,o.generation,o.owner_id,c.name,c.series,c.rarity,c.image_url,c.telegram_file_id
             FROM owned_cards o JOIN characters c ON c.id=o.character_id WHERE o.code=%s""",
             (code.upper(),)).fetchone()
 

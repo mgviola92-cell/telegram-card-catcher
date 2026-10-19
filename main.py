@@ -7,6 +7,7 @@ from telebot import types
 from app import storage
 from app.webhook_guard import begin_update
 from app import welcome
+from app.owned_media import send_owned_card
 
 logging.basicConfig(level=logging.INFO)
 TOKEN = os.environ['BOT_TOKEN']
@@ -109,7 +110,10 @@ def check(msg):
     if not row:
         bot.reply_to(msg,'Card not found.')
         return
-    bot.reply_to(msg,f"🃏 {row['name']} — {row['series']}\n{row['rarity']} · Gen {row['generation']}\n🆔 {row['code']}")
+    caption=f"🃏 {row['name']} — {row['series']}\n{row['rarity']} · Gen {row['generation']}\n🆔 {row['code']}"
+    if send_owned_card(bot, storage, msg.chat.id, row, caption=caption):
+        return
+    bot.reply_to(msg,caption)
 
 
 
