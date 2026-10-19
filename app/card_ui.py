@@ -53,7 +53,7 @@ def owned_caption(character):
         f"💠 {clean(character.get('rarity'),30)} · "
         f"<b>Gen {int(character['generation'])}</b>\n"
         f"🆔 <code>{clean(character.get('code'),32)}</code>\n"
-        ("⭐ <i>Favorite</i>" if character.get('favorite') else "✦ <i>Collected</i>")
+        + ("⭐ <i>Favorite</i>" if character.get('favorite') else "✦ <i>Collected</i>")
     )
 
 
