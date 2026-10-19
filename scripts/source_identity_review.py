@@ -48,6 +48,8 @@ def inspect_sources(named_sources, max_rows=MAX_ROWS, max_bucket=MAX_BUCKET,
     sources = {}
     invalid = 0
     total = 0
+    if not all(isinstance(s, str) and s.strip() for s in named_sources):
+        raise ValueError("Source labels must be nonempty strings")
     for source, rows in sorted(named_sources.items()):
         if not isinstance(source, str) or not source.strip() or not isinstance(rows, list):
             raise ValueError("Sources must have distinct names and arrays")
@@ -220,9 +222,7 @@ def main():
         report["decisions_summary"] = apply_human_decisions(
             report, json.loads(Path(a.decisions).read_text(encoding="utf8")))
     if a.summary_only:
-        report.pop("candidate_pairs")
-        report["candidate_pairs_count"] = len(
-            inspect_sources(named)["candidate_pairs"])
+        report["candidate_pairs_count"] = len(report.pop("candidate_pairs"))
     target = Path(a.output)
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(json.dumps(report, ensure_ascii=False, indent=2)+"\n", encoding="utf8")
