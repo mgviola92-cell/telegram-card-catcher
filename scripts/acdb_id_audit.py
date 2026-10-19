@@ -81,7 +81,8 @@ class FirstColumnIDs:
                 'unreadable_first_column_ids':self.unreadable}
 
 
-def inspect_ids(path, table, max_uncompressed_bytes=MAX_BYTES):
+def _scan_ids(path, table, max_uncompressed_bytes=MAX_BYTES):
+    """Private scanner returning ID set in memory; NEVER serialize or log IDs."""
     if table not in EXPECTED:
         raise ValueError('Unsupported table')
     path = Path(path)
@@ -130,9 +131,16 @@ def inspect_ids(path, table, max_uncompressed_bytes=MAX_BYTES):
         raise ValueError('Could not verify first-column ID mapping')
     if parser.depth != 0 or parser.quote is not None or active:
         raise ValueError('Incomplete SQL INSERT found')
-    return {'table':table, 'verified_first_column':observed_columns[0],
-            **parser.result(), 'raw_records_exported':0,
-            'image_rights_approved':0}
+    result = {'table':table, 'verified_first_column':observed_columns[0],
+              **parser.result(), 'raw_records_exported':0,
+              'image_rights_approved':0}
+    return result, parser.ids
+
+
+def inspect_ids(path, table, max_uncompressed_bytes=MAX_BYTES):
+    """Emit aggregate counts only; ID sets never leave the private parser."""
+    result, _ = _scan_ids(path, table, max_uncompressed_bytes)
+    return result
 
 
 def main():
