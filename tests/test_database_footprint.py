@@ -34,3 +34,11 @@ class FootprintAuditTests(unittest.TestCase):
         result=check([row],[])
         self.assertFalse(result['metadata_valid'])
         self.assertFalse(result['can_pilot'])
+
+    def test_catalog_capacity_scenarios_are_not_measured(self):
+        from scripts.catalog_capacity import estimate
+        r=estimate(50000,100000)
+        self.assertGreater(r['estimated_total_bytes'],8_200_192)
+        self.assertIn('not measured',r['warning'])
+        with self.assertRaises(ValueError):
+            estimate(-1,100)
