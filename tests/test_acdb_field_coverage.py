@@ -79,7 +79,7 @@ INSERT INTO `characters` VALUES
         src=self.dump('characters',['id','romji','japanese','image','thumb'],
                       "INSERT INTO `characters` VALUES (1,'Alpha',NULL,'same.jpg','common-thumb'),"
                       "(2,'Beta',NULL,'same.jpg','common-thumb'),"
-                      "(3,'Gamma',NULL,'different.jpg','common-thumb');\\n")
+                      "(3,'Gamma',NULL,'different.jpg','common-thumb');\n")
         r=inspect_coverage(src,'characters')
         self.assertEqual(r['characters_with_artwork_pointer_hint'],3)
         self.assertEqual(r['distinct_media_pointer_hints']['image'],2)
@@ -91,7 +91,7 @@ INSERT INTO `characters` VALUES
     def test_oversized_art_pointer_counted_but_not_in_distinct_set(self):
         src=self.dump('characters',['id','romji','japanese','image','thumb'],
                       "INSERT INTO `characters` VALUES (1,'Alpha',NULL,'"
-                      +('X'*4000)+"',NULL);\\n")
+                      +('X'*4000)+"',NULL);\n")
         r=inspect_coverage(src,'characters')
         self.assertEqual(r['characters_with_artwork_pointer_hint'],1)
         self.assertEqual(r['distinct_media_pointer_hints']['image'],0)
