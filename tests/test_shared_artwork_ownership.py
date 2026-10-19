@@ -4,6 +4,7 @@ The optional integration test uses only a disposable PostgreSQL named
 cardkout_test*, with test transaction rollback; no Telegram or Neon calls.
 """
 import unittest
+from contextlib import nullcontext
 from unittest.mock import patch
 from pathlib import Path
 
@@ -31,7 +32,7 @@ class SharedOwnershipArtworkTests(unittest.TestCase):
 
     def setUp(self):
         self.db.execute('BEGIN')
-        self.connector = patch('app.storage.connect', return_value=self.db)
+        self.connector = patch('app.storage.connect', return_value=nullcontext(self.db))
         self.connector.start()
 
     def tearDown(self):
