@@ -27,3 +27,16 @@ class CatalogReadinessTests(unittest.TestCase):
 
     def test_empty_catalog_never_marked_ready(self):
         self.assertFalse(readiness([],[])['ready_to_import'])
+
+    def test_large_review_batch_counts_exact_approvals(self):
+        items=[dict(self.item,source_key=f'demo:hero:{i}',name=f'Hero {i}') for i in range(250)]
+        approvals=[dict(self.approval,source_key=f'demo:hero:{i}') for i in range(249)]
+        result=readiness(items,approvals)
+        self.assertEqual(result['approved_artwork'],249)
+        self.assertEqual(result['awaiting_artwork_review'],['demo:hero:249'])
+        self.assertFalse(result['ready_to_import'])
+
+    def test_duplicate_approval_does_not_grant_permission(self):
+        result=readiness([self.item],[self.approval,self.approval])
+        self.assertEqual(result['approved_artwork'],0)
+        self.assertFalse(result['ready_to_import'])
