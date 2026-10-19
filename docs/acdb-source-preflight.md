@@ -35,6 +35,27 @@ records, rights to names/data, character-to-title matching, image coverage,
 or a live import. **The 148,604 must not be added to the separate 4,666
 metadata count** until cross-source duplicates are actually measured.
 
+### Verified distinct ID findings (later 2026-10-19)
+Official metadata-only GitHub Actions run
+https://github.com/mgviola92-cell/telegram-card-catcher/actions/runs/39281031157
+**SUCCESS** verified expected first-column DDL and real SQL identifier counts:
+
+| Table/key | Raw SQL tuples | Distinct first-column IDs | Repeated IDs |
+| --- | ---: | ---: | ---: |
+| characters.id | 148,604 | **148,604** | 0 |
+| publishers.id | 14,664 | **14,664** | 0 |
+| assignments.cid | 221,411 | **148,605** | 72,806 |
+
+Distinct character IDs in the **characters source itself** are therefore
+verified at 148,604; they are **not** cleared for audiences, image use, import,
+or deduplicated against MAL source IDs. `assignments.cid` contains one more
+distinct value than the character table. This **does not prove one orphan ID**:
+the sets may differ by more than one entry. A separate verified
+`scripts/acdb_relationship_audit.py` checks exact character and title
+reference coverage, duplicate character/title pairs, and source relationship
+integrity without publishing records. Its real run result must be checked
+before claiming any number of missing relationships.
+
 ### Verified table/relationship fields (from actual SQL DDL)
 - `characters`: `id`, `romji`, `japanese`, `publisher`,
   `pid2`, `image`, `thumb`, and other trait/census fields.
