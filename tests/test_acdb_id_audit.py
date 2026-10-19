@@ -30,8 +30,8 @@ INSERT INTO `characters` VALUES (2,'same id'),(3,'many');
         self.assertEqual(result['image_rights_approved'],0)
 
     def test_giant_sql_string_fragmented_without_export(self):
-        sql=(b"CREATE TABLE `characters` (\\n `id` int,\\n `romji` text\\n);\\n"
-             + b"INSERT INTO `characters` VALUES (123,'" + b"Z"*200_000 + b"');\\n")
+        sql=(b"CREATE TABLE `characters` (\n `id` int,\n `romji` text\n);\n"
+             + b"INSERT INTO `characters` VALUES (123,'" + b"Z"*200_000 + b"');\n")
         source=self.fixture(sql)
         result=inspect_ids(source,'characters')
         self.assertEqual(result['unique_first_column_ids'],1)
