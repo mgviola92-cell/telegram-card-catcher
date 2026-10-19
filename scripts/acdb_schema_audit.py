@@ -13,9 +13,43 @@ from pathlib import Path
 import re
 
 STATEMENT = re.compile(r"^\s*(INSERT\s+INTO|CREATE\s+TABLE)(?:\s+IF\s+NOT\s+EXISTS)?\s+`?([A-Za-z0-9_]+)`?", re.I)
+INSERT_PREFIX = re.compile(rb'^\s*INSERT\s+INTO\s+`?([A-Za-z0-9_]+)`?\s+VALUES\s*', re.I)
 COLUMN = re.compile(r"^\s*`([A-Za-z_][A-Za-z0-9_]*)`\s+", re.I)
 MAX_FRAGMENT = 65536
 MAX_BYTES = 1_000_000_000
+
+
+class SQLTupleCounter:
+    """Count top-level MySQL VALUES tuples without exposing cell contents."""
+    def __init__(self):
+        self.depth = 0
+        self.quote = None
+        self.escaped = False
+        self.count = 0
+        self.finished = False
+
+    def feed(self, chunk):
+        for c in chunk:
+            if self.escaped:
+                self.escaped = False
+                continue
+            if self.quote is not None:
+                if c == 92:  # MySQL backslash-escaped quote/character
+                    self.escaped = True
+                elif c == self.quote:
+                    self.quote = None
+                continue
+            if c in (39, 34):
+                self.quote = c
+            elif c == 40:
+                self.depth += 1
+            elif c == 41 and self.depth:
+                self.depth -= 1
+                if not self.depth:
+                    self.count += 1
+            elif c == 59 and self.depth == 0:
+                self.finished = True
+                break
 
 
 def inspect_file(path, max_uncompressed_bytes=MAX_BYTES):
@@ -30,6 +64,9 @@ def inspect_file(path, max_uncompressed_bytes=MAX_BYTES):
     columns = {}
     bytes_out = 0
     long_lines = 0
+    row_counts = Counter()
+    current_counter = None
+    current_table = None
     current_ddl = None
     is_continuation = False
     with gzip.open(source, 'rb') as stream:
@@ -42,12 +79,27 @@ def inspect_file(path, max_uncompressed_bytes=MAX_BYTES):
                 raise ValueError('Decompressed SQL exceeds safety limit')
             line_done = frag.endswith(b'\n')
             if is_continuation:
+                if current_counter:
+                    current_counter.feed(frag)
+                    if current_counter.finished:
+                        row_counts[current_table] += current_counter.count
+                        current_counter = None
+                        current_table = None
                 if line_done:
                     is_continuation = False
                 continue
             if not line_done and len(frag) == MAX_FRAGMENT:
                 long_lines += 1
                 is_continuation = True
+            insert = INSERT_PREFIX.match(frag)
+            if insert:
+                current_table = insert.group(1).decode('ascii')
+                current_counter = SQLTupleCounter()
+                current_counter.feed(frag[insert.end():])
+                if current_counter.finished:
+                    row_counts[current_table] += current_counter.count
+                    current_counter = None
+                    current_table = None
             line = frag.decode('utf-8', 'replace')
             match = STATEMENT.match(line)
             if match:
@@ -75,9 +127,10 @@ def inspect_file(path, max_uncompressed_bytes=MAX_BYTES):
         'columns_by_table': dict(sorted(columns.items())),
         'insert_statements_by_table': dict(sorted(inserts.items())),
         'overlong_sql_lines_skipped': long_lines,
-        'character_rows_measured': False,
+        'inserted_tuples_by_table': dict(sorted(row_counts.items())),
+        'character_rows_measured': 'characters' in row_counts,
         'rights_approved_artworks': 0,
-        'notice': 'Metadata SQL inspection only. INSERT count is not row count. Age/content filters and image rights are NOT approved.',
+        'notice': 'Metadata SQL inspection only; inserted tuple counts are not deduplicated IDs. Age/content filters and image rights are NOT approved.',
     }
 
 
