@@ -13,3 +13,5 @@ jobs:
       - run: pip install -r requirements.txt
       - run: python -m compileall -q main.py app scripts tests
       - run: python -m unittest discover -s tests -v
+      # Source review integration is synthetic/offline: no external API or Neon.
+      - run: python -m scripts.source_pipeline_smoke
