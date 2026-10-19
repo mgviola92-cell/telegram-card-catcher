@@ -10,10 +10,14 @@ def readiness(items, approvals):
     quality=report(items)
     approved=0
     missing=[]
+    # Index approvals once: 10k-character reviews must not scan the manifest 10k times.
+    approvals_by_key={}
+    for entry in approvals:
+        if isinstance(entry,dict) and isinstance(entry.get('source_key'),str):
+            approvals_by_key.setdefault(entry['source_key'],[]).append(entry)
     for item in items:
         try:
-            require_artwork_approval([item], [entry for entry in approvals
-                if isinstance(entry,dict) and entry.get('source_key')==item['source_key']])
+            require_artwork_approval([item], approvals_by_key.get(item['source_key'],[]))
             approved+=1
         except ValueError:
             missing.append(item['source_key'])
