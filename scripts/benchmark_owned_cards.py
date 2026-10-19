@@ -74,6 +74,11 @@ def measure(cards=100000):
         actual = db.execute('SELECT count(*) AS n FROM owned_cards').fetchone()['n']
         if actual != cards:
             raise RuntimeError(f'Seed mismatch: expected {cards}, found {actual}')
+        # New schemas omit the redundant index. Re-create it ONLY inside the
+        # disposable experiment so old-vs-new bytes remain measurable.
+        simulated_legacy_index = not bool(redundant_index_exists(db))
+        if simulated_legacy_index:
+            db.execute('CREATE INDEX owned_cards_by_character ON owned_cards(character_id,generation)')
         before = db.execute("""SELECT
             pg_total_relation_size('owned_cards'::regclass) AS total_bytes,
             pg_relation_size('owned_cards'::regclass) AS heap_bytes,
@@ -112,11 +117,13 @@ def measure(cards=100000):
             'owned_indexes_bytes': after['index_bytes'],
             'owned_total_bytes_without_duplicate': after['total_bytes'],
             'legacy_duplicate_index_present': legacy_index_present,
+            'legacy_duplicate_index_simulated_in_test': simulated_legacy_index,
             'duplicate_index_bytes_removed_in_isolated_schema': saved,
             'owned_total_bytes_with_duplicate': before['total_bytes'],
             'owned_bytes_per_card_amortized': round(after['total_bytes'] / cards, 2),
             'notes': [
                 'Real PostgreSQL bytes on synthetic rows, not Neon production measurements.',
+                'The duplicate index is simulated if missing, only in the test schema.',
                 'Only the experimental schema is changed/dropped; public and Neon untouched.',
                 'Character and variant metadata, other tables, live usage and bloat are excluded.',
                 'URLs are stored once per character; owned cards contain no image bytes or URLs.',
