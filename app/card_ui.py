@@ -1,89 +1,143 @@
-"""Compact Telegram-native UI for spawn, catch, and owned-card navigation.
+"""Telegram-native captions and collection UI. No image rendering or fonts/assets.
 
-No artwork is generated/downloaded: images still come directly from the
-character's shared HTTPS URL or Telegram's reusable file_id.
+Use Telegram HTML bold for emphasis, and Unicode-styled text ONLY for static
+English headings. Actual Telegram font rendering depends on the client.
+Artwork is delivered via shared URL/file_id, not stored on a per-card basis.
 """
 from html import escape
+import re
 from telebot import types
 from app.card_refs import public_card_id
 
 PAGE_SIZE = 8
 MAX_NAME = 85
 MAX_SERIES = 100
+RULE = "━━━━━━━━━━━━━━"
+
+# Static headings may use Unicode math sans bold. Names, series, and IDs remain
+# normal, searchable/copyable characters (with Telegram-native HTML emphasis).
+SPAWN_TITLE = "𝗪𝗜𝗟𝗗 𝗖𝗛𝗔𝗥𝗔𝗖𝗧𝗘𝗥!"
+CATCH_TITLE = "𝗖𝗛𝗔𝗥𝗔𝗖𝗧𝗘𝗥 𝗖𝗔𝗨𝗚𝗛𝗧!"
+CARD_TITLE = "𝗖𝗛𝗔𝗥𝗔𝗖𝗧𝗘𝗥 𝗖𝗔𝗥𝗗"
+HAREM_TITLE = "𝗚𝗟𝗢𝗕𝗔𝗟 𝗛𝗔𝗥𝗘𝗠"
+
+RARITY_SYMBOLS = {
+    "common": "⚪",
+    "uncommon": "🟢",
+    "rare": "🔵",
+    "legendary": "🟠",
+    "mystical": "🟣",
+    "divine": "✨",
+    "crossverse": "🔮",
+    "cataphract": "🛡️",
+    "supreme": "👑",
+    "cnft": "💠",
+}
+
 
 def clean(value, limit=MAX_NAME):
-    """Escape arbitrary source text for Telegram HTML without breaking tags."""
-    text = str(value or "").strip()
-    if len(text) > limit:
-        text = text[:limit - 1].rstrip() + "…"
-    return escape(text, quote=False)
+    """Escape potentially untrusted catalog/player strings for Telegram HTML."""
+    raw = str(value or "").strip()
+    if len(raw) > limit:
+        raw = raw[:limit - 1].rstrip() + "…"
+    return escape(raw, quote=False)
+
+
+def rarity_label(value):
+    plain = str(value or "Unknown").strip()
+    symbol = RARITY_SYMBOLS.get(plain.casefold(), "💎")
+    return f"{symbol} <b>{clean(plain, 30)}</b>"
+
+
+def spawn_series(character):
+    """Avoid revealing answers when the series title contains the character name.
+
+    E.g. Alice must not be accidentally revealed by 'Alice's Adventures in
+    Wonderland'. We deliberately do not hide very short one-letter aliases.
+    """
+    series = str(character.get("series") or "").strip()
+    if not series:
+        return "Unknown"
+    names = [character.get("name"), *(character.get("aliases") or [])]
+    for name in names:
+        if not isinstance(name, str):
+            continue
+        name = name.strip()
+        if len(name) < 3:
+            continue
+        if re.search(r"(?<!\w)" + re.escape(name.casefold()) + r"(?!\w)",
+                     series.casefold()):
+            return "Hidden until caught 🎭"
+    return series
 
 
 def spawn_caption(character):
     return (
-        "✨ <b>WILD CHARACTER APPEARED</b> ✨\n"
-        "━━━━━━━━━━━━━━━━\n"
-        f"🎬 <b>Series:</b> {clean(character.get('series'),MAX_SERIES)}\n"
-        f"💠 <b>Rarity:</b> {clean(character.get('rarity'),30)}\n\n"
-        "🔎 <b>Who's this character?</b>\n"
-        "💬 Guess the name in chat to catch it!\n"
-        "⏳ <i>15 minutes · First correct guess wins</i>"
+        f"✨ <b>{SPAWN_TITLE}</b>\n"
+        f"{RULE}\n"
+        f"🎬 <b>SERIES:</b> {clean(spawn_series(character), MAX_SERIES)}\n"
+        f"💎 <b>RARITY:</b> {rarity_label(character.get('rarity'))}\n\n"
+        "🔎 <b>GUESS THE NAME</b>\n"
+        "💬 <i>First correct answer wins this card.</i>\n"
+        "⏳ <i>15-minute catch window</i>"
     )
 
 
 def catch_text(character, display_name):
     return (
-        "🎉 <b>CHARACTER CAUGHT!</b>\n"
-        "━━━━━━━━━━━━━━━━\n"
-        f"👤 <b>{clean(display_name, 45)}</b>\n"
-        f"🃏 <b>{clean(character.get('name'))}</b>\n"
-        f"🎬 {clean(character.get('series'),MAX_SERIES)}\n"
-        f"💠 {clean(character.get('rarity'),30)} · "
-        f"<b>Gen {int(character['generation'])}</b>\n"
-        f"🆔 <code>{clean(public_card_id(character),32)}</code>\n\n"
-        "✅ <i>Added to your global collection</i>"
+        f"🎉 <b>{CATCH_TITLE}</b>\n"
+        f"{RULE}\n"
+        f"👤 <b>PLAYER:</b> {clean(display_name, 45)}\n"
+        f"🌸 <b>NAME:</b> <b>{clean(character.get('name'))}</b>\n"
+        f"💎 <b>RARITY:</b> {rarity_label(character.get('rarity'))}\n"
+        f"🎬 <b>SERIES:</b> {clean(character.get('series'), MAX_SERIES)}\n"
+        f"🆔 <b>ID:</b> <code>{clean(public_card_id(character), 32)}</code>"
+        f"  ·  <b>GEN:</b> {int(character['generation'])}\n\n"
+        "✅ <i>Added to your global collection.</i>"
     )
 
 
 def owned_caption(character):
     return (
-        "🃏 <b>MY CHARACTER CARD</b>\n"
-        "━━━━━━━━━━━━━━━━\n"
-        f"✨ <b>{clean(character.get('name'))}</b>\n"
-        f"🎬 {clean(character.get('series'),MAX_SERIES)}\n"
-        f"💠 {clean(character.get('rarity'),30)} · "
-        f"<b>Gen {int(character['generation'])}</b>\n"
-        f"🆔 <code>{clean(public_card_id(character),32)}</code>\n"
-        + ("⭐ <i>Favorite</i>" if character.get('favorite') else "✦ <i>Collected</i>")
+        f"🃏 <b>{CARD_TITLE}</b>\n"
+        f"{RULE}\n"
+        f"🌸 <b>NAME:</b> <b>{clean(character.get('name'))}</b>\n"
+        f"💎 <b>RARITY:</b> {rarity_label(character.get('rarity'))}\n"
+        f"🎬 <b>SERIES:</b> {clean(character.get('series'), MAX_SERIES)}\n"
+        f"🆔 <b>ID:</b> <code>{clean(public_card_id(character), 32)}</code>"
+        f"  ·  <b>GEN:</b> {int(character['generation'])}\n"
+        + ("⭐ <b>FAVOURITE</b>" if character.get("favorite") else "✦ <i>Collected</i>")
     )
 
 
 def collection_text(cards, total, page):
-    """Compact Telegram-native series sections, not generated card artwork."""
+    """One readable paged group list (not a generated image or fake totals)."""
     if not cards:
-        return ("🃏 <b>MY GLOBAL COLLECTION</b>\n"
-                "━━━━━━━━━━━━━━━━\n"
-                "Your collection is empty. Catch a character in a group!")
+        return (
+            f"🃏 <b>{HAREM_TITLE}</b>\n"
+            f"{RULE}\n"
+            "Your collection is empty. Catch a character in a group!"
+        )
     first = page * PAGE_SIZE + 1
     last = first + len(cards) - 1
     lines = [
-        "🃏 <b>MY GLOBAL COLLECTION</b>",
-        "━━━━━━━━━━━━━━━━",
-        f"📚 <b>{total}</b> cards · Showing {first}–{last}",
+        f"🃏 <b>{HAREM_TITLE}</b>",
+        RULE,
+        f"📚 <b>{total}</b> cards  ·  Showing {first}–{last}",
     ]
-    # A page may contain cards from multiple series. Group only visible rows,
-    # never invent full-series collection totals from a partial page.
+    # Only group the current page; never invent all-series collection totals.
     groups = {}
     for card in cards:
-        groups.setdefault(str(card.get('series') or 'Other'), []).append(card)
+        groups.setdefault(str(card.get("series") or "Other"), []).append(card)
     for series, members in groups.items():
-        lines.append(f"\n🍀 <b>{clean(series, MAX_SERIES)}</b> · {len(members)} shown")
+        lines.append(f"\n🍀 <b>{clean(series, MAX_SERIES)}</b>  ·  {len(members)} shown")
         for card in members:
-            star = "⭐ " if card.get('favorite') else ""
+            star = "⭐ " if card.get("favorite") else ""
             lines.append(f"<code>{clean(public_card_id(card),32)}</code>  "
                          f"{star}<b>{clean(card.get('name'),44)}</b>")
-            lines.append(f"    💠 {clean(card.get('rarity'),23)} · Gen {int(card['generation'])}")
-    lines.append("\n👇 <i>Tap a character below to view its photo.</i>")
+            lines.append(f"    💎 {rarity_label(card.get('rarity'))}"
+                         f"  ·  <b>Gen {int(card['generation'])}</b>")
+    lines.append("\n👇 <i>Tap a name below to view the original artwork.</i>")
     return "\n".join(lines)
 
 
