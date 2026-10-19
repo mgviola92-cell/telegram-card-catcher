@@ -15,7 +15,8 @@ class CardUITests(unittest.TestCase):
         self.assertIn('GUESS THE NAME',caption)
         self.assertIn('15 minutes',caption)
         self.assertNotIn('>Alice<',caption)
-        self.assertIn(CARD['series'],caption)
+        self.assertNotIn(CARD['series'],caption)  # Alice's name would spoil the answer
+        self.assertIn('Hidden until caught',caption)
 
     def test_user_and_series_strings_are_html_escaped(self):
         danger=dict(CARD,name='<Alice & friends>',series='A <script> & B')
