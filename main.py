@@ -9,6 +9,7 @@ from app.webhook_guard import begin_update
 from app import welcome
 from app.owned_media import send_owned_card
 from app import card_ui
+from app.card_refs import public_card_id
 
 logging.basicConfig(level=logging.INFO)
 TOKEN = os.environ['BOT_TOKEN']
@@ -114,7 +115,7 @@ def card_actions(q):
             return
         if action == 'cardfav':
             enabled = not row['favorite']
-            if storage.set_favorites(q.from_user.id,[row['code']],enabled) != 1:
+            if storage.set_favorites(q.from_user.id,[public_card_id(row)],enabled) != 1:
                 bot.answer_callback_query(q.id,'Card could not be updated.',show_alert=True)
                 return
             card = dict(row, favorite=enabled)
@@ -147,14 +148,14 @@ def card_actions(q):
 def check(msg):
     parts = msg.text.split(maxsplit=1)
     if len(parts)<2:
-        bot.reply_to(msg,'Usage: /check CODE')
+        bot.reply_to(msg,'Usage: /check ID')
         return
     row=storage.get_card(parts[1].strip())
     if not row:
         bot.reply_to(msg,'Card not found.')
         return
     caption=card_ui.owned_caption(row)
-    markup=card_ui.open_card_keyboard(row['owner_id'],row['code'],row['favorite'])
+    markup=card_ui.open_card_keyboard(row['owner_id'],public_card_id(row),row['favorite'])
     if send_owned_card(bot,storage,msg.chat.id,row,caption=caption,
                        parse_mode='HTML',reply_markup=markup):
         return
@@ -167,17 +168,17 @@ def favorites_command(msg):
     command = msg.text.split()[0].split('@')[0].lower()
     codes = msg.text.split()[1:]
     if command == '/fav' and len(codes) != 1:
-        bot.reply_to(msg, 'Usage: /fav CODE')
+        bot.reply_to(msg, 'Usage: /fav ID')
         return
     if command == '/mfav' and not 1 <= len(codes) <= 20:
-        bot.reply_to(msg, 'Usage: /mfav CODE1 CODE2 ... (up to 20)')
+        bot.reply_to(msg, 'Usage: /mfav ID1 ID2 ... (up to 20)')
         return
     if command == '/unfav' and len(codes) != 1:
-        bot.reply_to(msg, 'Usage: /unfav CODE')
+        bot.reply_to(msg, 'Usage: /unfav ID')
         return
     changed = storage.set_favorites(msg.from_user.id, codes, command != '/unfav')
     bot.reply_to(msg, f'⭐ Updated {changed} card(s).' if changed else
-                 'No changes. Check that you own every card code.')
+                 'No changes. Check that you own every card ID.')
 
 
 @bot.message_handler(commands=['search'])
@@ -239,7 +240,7 @@ def activity(msg):
     if caught:
         bot.reply_to(msg,card_ui.catch_text(caught,msg.from_user.first_name),
                      parse_mode='HTML',
-                     reply_markup=card_ui.catch_keyboard(msg.from_user.id,caught['code']))
+                     reply_markup=card_ui.catch_keyboard(msg.from_user.id,public_card_id(caught)))
         return
     spawned=storage.try_spawn(msg.chat.id,SPAWN_MESSAGES)
     if spawned:
