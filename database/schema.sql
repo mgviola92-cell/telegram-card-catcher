@@ -40,7 +40,9 @@ CREATE TABLE IF NOT EXISTS owned_cards (
 ALTER TABLE owned_cards ADD COLUMN IF NOT EXISTS caught_message_id BIGINT;
 CREATE UNIQUE INDEX IF NOT EXISTS owned_cards_generation_unique ON owned_cards(character_id, generation);
 CREATE INDEX IF NOT EXISTS owned_cards_by_owner ON owned_cards (owner_id, obtained_at DESC, id DESC);
-CREATE INDEX IF NOT EXISTS owned_cards_by_character ON owned_cards (character_id, generation);
+-- The unique owned_cards_generation_unique index already covers both columns.
+-- No duplicate owned_cards_by_character index on fresh databases.
+-- Existing databases: review the index before any separately approved DROP.
 CREATE TABLE IF NOT EXISTS processed_updates (
   update_id BIGINT PRIMARY KEY,
   processed_at TIMESTAMPTZ NOT NULL DEFAULT now()
