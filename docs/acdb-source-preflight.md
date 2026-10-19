@@ -80,6 +80,32 @@ Do not stage the orphan relations as characters or declare `all_references_valid
 These measurements are not approvals for character artwork, subject
 suitability, or source licensing.
 
+### Verified aggregate source name/media-pointer coverage (2026-10-19)
+GitHub Actions run
+https://github.com/mgviola92-cell/telegram-card-catcher/actions/runs/39286370924
+**SUCCESS** measured actual source-field presence, without emitting individual
+names, media pointers, source rows, image bytes or copyrighted artwork:
+
+| Official source table/field | Rows with nonblank value |
+| --- | ---: |
+| characters.romji | 148,604 / 148,604 |
+| characters.japanese | 138,342 / 148,604 |
+| characters.image | **148,604 / 148,604** |
+| characters.thumb | **148,604 / 148,604** |
+| Characters with a name AND at least one image-pointer field | **148,604 / 148,604** |
+| publishers.english | 14,664 / 14,664 |
+| publishers.japanese | 14,519 / 14,664 |
+| publishers.romjititle | 13,215 / 14,664 |
+
+**Critical distinction:** `image` and `thumb` are populated SQL metadata
+fields, **NOT verified public HTTPS image URLs**. Their contents have not been
+examined for correct subject identity, distinctness, reachability, suitability,
+rights, placeholders, or Telegram compatibility. They may contain internal
+path/filename references or duplicates. As verified today: **0 images
+downloaded, 0 images verified as reusable, 0 rights-approved artworks, 0
+audience-approved characters, 0 spawn-ready / imported characters**.
+Do not convert these coverage numbers into an image-approval claim.
+
 ### Verified table/relationship fields (from actual SQL DDL)
 - `characters`: `id`, `romji`, `japanese`, `publisher`,
   `pid2`, `image`, `thumb`, and other trait/census fields.
