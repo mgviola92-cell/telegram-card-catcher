@@ -110,6 +110,36 @@ def owned_caption(character):
     )
 
 
+def favourite_text(card, added=True):
+    """A readable Telegram status like the reference screenshot, no new image."""
+    title = "𝗡𝗘𝗪 𝗙𝗔𝗩𝗢𝗨𝗥𝗜𝗧𝗘!" if added else "𝗙𝗔𝗩𝗢𝗨𝗥𝗜𝗧𝗘 𝗥𝗘𝗠𝗢𝗩𝗘𝗗"
+    marker = "✅" if added else "☆"
+    return (
+        f"{marker} <b>{title}</b>\n"
+        f"{RULE}\n"
+        f"🌸 <b>NAME:</b> <b>{clean(card.get('name'))}</b>\n"
+        f"💎 <b>RARITY:</b> {rarity_label(card.get('rarity'))}\n"
+        f"🎬 <b>SERIES:</b> {clean(card.get('series'), MAX_SERIES)}\n"
+        f"🆔 <b>ID:</b> <code>{clean(public_card_id(card),32)}</code>"
+    )
+
+
+def search_text(found):
+    """Catalog IDs are NOT owned-card IDs; make the distinction explicit."""
+    lines = [
+        "🔎 <b>𝗖𝗛𝗔𝗥𝗔𝗖𝗧𝗘𝗥 𝗦𝗘𝗔𝗥𝗖𝗛</b>",
+        RULE,
+    ]
+    for card in found:
+        lines.append(f"🔖 <b>Catalog #{int(card['id'])}</b>  "
+                     f"<b>{clean(card.get('name'), 70)}</b>")
+        lines.append(f"    🎬 {clean(card.get('series'), MAX_SERIES)}")
+        lines.append(f"    💎 {rarity_label(card.get('rarity'))}")
+    lines.append("\n<i>Catalog IDs identify characters, not owned cards. "
+                 "Use /harem for your card IDs.</i>")
+    return "\n".join(lines)
+
+
 def collection_text(cards, total, page):
     """One readable paged group list (not a generated image or fake totals)."""
     if not cards:
