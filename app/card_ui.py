@@ -5,6 +5,7 @@ character's shared HTTPS URL or Telegram's reusable file_id.
 """
 from html import escape
 from telebot import types
+from app.card_refs import public_card_id
 
 PAGE_SIZE = 8
 MAX_NAME = 85
@@ -39,7 +40,7 @@ def catch_text(character, display_name):
         f"🎬 {clean(character.get('series'),MAX_SERIES)}\n"
         f"💠 {clean(character.get('rarity'),30)} · "
         f"<b>Gen {int(character['generation'])}</b>\n"
-        f"🆔 <code>{clean(character.get('code'),32)}</code>\n\n"
+        f"🆔 <code>{clean(public_card_id(character),32)}</code>\n\n"
         "✅ <i>Added to your global collection</i>"
     )
 
@@ -52,7 +53,7 @@ def owned_caption(character):
         f"🎬 {clean(character.get('series'),MAX_SERIES)}\n"
         f"💠 {clean(character.get('rarity'),30)} · "
         f"<b>Gen {int(character['generation'])}</b>\n"
-        f"🆔 <code>{clean(character.get('code'),32)}</code>\n"
+        f"🆔 <code>{clean(public_card_id(character),32)}</code>\n"
         + ("⭐ <i>Favorite</i>" if character.get('favorite') else "✦ <i>Collected</i>")
     )
 
@@ -74,7 +75,7 @@ def collection_text(cards, total, page):
         star = "⭐ " if card.get("favorite") else ""
         lines.append(f"<b>{number:02d}.</b> {star}<b>{clean(card.get('name'),42)}</b>")
         lines.append(f"    💠 {clean(card.get('rarity'),23)} · Gen {int(card['generation'])} "
-                     f"· <code>{clean(card['code'],32)}</code>")
+                     f"· <code>{clean(public_card_id(card),32)}</code>")
     lines.append("\n👇 <i>Tap a character below to open its artwork.</i>")
     return "\n".join(lines)
 
@@ -82,7 +83,7 @@ def collection_text(cards, total, page):
 def collection_keyboard(owner_id, cards, page, total):
     kb = types.InlineKeyboardMarkup(row_width=2)
     for card in cards:
-        code = str(card["code"])
+        code = public_card_id(card)
         title = str(card.get("name") or "Character").strip()[:27]
         kb.add(types.InlineKeyboardButton(
             f"🖼 {title}", callback_data=f"cardview:{owner_id}:{code}"))
