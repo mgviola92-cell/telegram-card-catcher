@@ -14,6 +14,40 @@ class NumericStorageTests(unittest.TestCase):
         cursor.fetchall.return_value=rows or []
         return db,cursor
 
+    def test_collection_query_includes_numeric_primary_key(self):
+        db,_=self.connect()
+        db.execute.return_value.fetchone.return_value={'n':1}
+        db.execute.return_value.fetchall.return_value=[{
+            'card_id':6103,'code':'40QBIWXI8P','name':'Alice',
+            'series':'Wonderland','rarity':'Common','generation':1,'favorite':False}]
+        with patch('app.storage.connect') as mocked:
+            mocked.return_value.__enter__.return_value=db
+            cards,total=storage.get_cards(345)
+        self.assertEqual(total,1)
+        self.assertEqual(cards[0]['card_id'],6103)
+        self.assertIn('o.id AS card_id',db.execute.call_args.args[0])
+        self.assertEqual(db.execute.call_args.args[1][0],345)
+
+    def test_new_catch_returns_existing_numeric_identity_not_random_code(self):
+        db,cur=self.connect()
+        cur.fetchone.side_effect=[
+            {'active_character_id':42,'last_spawn':'now'},
+            {'recent':True},
+            {'id':42,'name':'Alice','aliases':[], 'series':'Wonderland'},
+            {'next':1},
+            None,       # generated random legacy code is unique
+            {'id':6103} # INSERT INTO owned_cards ... RETURNING id
+        ]
+        with patch('app.storage.connect') as mocked, \
+             patch('app.storage.secrets.choice',return_value='A'):
+            mocked.return_value.__enter__.return_value=db
+            card=storage.claim(-10001,345,'Alice')
+        self.assertEqual(card['card_id'],6103)
+        self.assertEqual(card['generation'],1)
+        self.assertEqual(card['code'],'AAAAAAAAAA')
+        self.assertTrue(any('RETURNING id' in args.args[0]
+                            for args in cur.execute.call_args_list))
+
     def test_check_numeric_id_uses_primary_key(self):
         db,_=self.connect(row={'card_id':6103, 'code':'40QBIWXI8P'})
         with patch('app.storage.connect') as mocked:
