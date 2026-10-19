@@ -29,6 +29,8 @@ jobs:
       - run: pip install -r requirements.txt
       - run: python -m compileall -q main.py app scripts tests
       - run: python -m unittest discover -s tests -v
+      # Synthetic integration only: no external source API or production Neon.
+      - run: python -m scripts.source_pipeline_smoke
       # Telegram pilot catalog is only a small public-domain fixture; no DB writes.
       - run: python -m scripts.pilot_preflight --catalog data/telegram_pilot_catalog.json --approvals data/telegram_pilot_artwork_approvals.json
       - run: python -m scripts.spawn_benchmark --sizes 5000 10000 50000
