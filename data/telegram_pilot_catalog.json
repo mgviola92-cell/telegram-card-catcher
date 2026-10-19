@@ -1,0 +1,14 @@
+[
+  {
+    "source_key": "commons:alice:drink-me-tenniel-1865",
+    "name": "Alice",
+    "series": "Alice's Adventures in Wonderland",
+    "aliases": [
+      "Alice in Wonderland"
+    ],
+    "category": "other",
+    "rarity": "Common",
+    "weight": 100,
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/3/39/Alice_in_Wonderland%2C_Drink_me_by_John_Tenniel.jpg"
+  }
+]
