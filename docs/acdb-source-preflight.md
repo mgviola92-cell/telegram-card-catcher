@@ -56,6 +56,30 @@ reference coverage, duplicate character/title pairs, and source relationship
 integrity without publishing records. Its real run result must be checked
 before claiming any number of missing relationships.
 
+### Verified character-to-title foreign-key coverage (2026-10-19)
+Official metadata-only GitHub Actions
+https://github.com/mgviola92-cell/telegram-card-catcher/actions/runs/39284197667
+**SUCCESS**, with exact integer reference comparisons to the official dumps:
+
+| Audit item | Measured |
+| --- | ---: |
+| Character IDs with ≥1 valid title | **148,604 / 148,604** |
+| Title IDs with ≥1 valid character | **14,663 / 14,664** |
+| Character-title assignment rows | 221,411 |
+| Unique character-title ID pairs | **221,411** |
+| Duplicate pairs | **0** |
+| Assignments referencing missing character | **5** |
+| Distinct nonexistent character IDs in assignments | **1** |
+| Assignments referencing missing title | **0** |
+| Titles without any valid character | **1** |
+
+This means the source has five orphan assignment **rows** sharing a single
+missing character ID; it does **not** mean five legitimate new characters.
+All 148,604 declared characters have at least one valid title relation.
+Do not stage the orphan relations as characters or declare `all_references_valid`.
+These measurements are not approvals for character artwork, subject
+suitability, or source licensing.
+
 ### Verified table/relationship fields (from actual SQL DDL)
 - `characters`: `id`, `romji`, `japanese`, `publisher`,
   `pid2`, `image`, `thumb`, and other trait/census fields.
