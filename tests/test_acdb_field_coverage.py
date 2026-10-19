@@ -37,6 +37,8 @@ INSERT INTO `characters` VALUES
         self.assertEqual(r['nonblank_field_counts']['japanese'],1)
         self.assertEqual(r['nonblank_field_counts']['image'],2)
         self.assertEqual(r['nonblank_field_counts']['thumb'],1)
+        self.assertEqual(r['distinct_media_pointer_hints']['image'],2)
+        self.assertEqual(r['distinct_media_pointer_hints']['thumb'],1)
         self.assertEqual(r['image_urls_verified'],0)
         self.assertEqual(r['image_rights_approved'],0)
         self.assertNotIn('abc.jpg',str(r))
@@ -72,6 +74,28 @@ INSERT INTO `characters` VALUES
         self.assertEqual(r['sql_rows'],1)
         self.assertEqual(r['characters_with_both_hints'],1)
         self.assertNotIn('Y'*100,str(r))
+
+    def test_repeated_artwork_pointers_do_not_count_as_distinct_artworks(self):
+        src=self.dump('characters',['id','romji','japanese','image','thumb'],
+                      "INSERT INTO `characters` VALUES (1,'Alpha',NULL,'same.jpg','common-thumb'),"
+                      "(2,'Beta',NULL,'same.jpg','common-thumb'),"
+                      "(3,'Gamma',NULL,'different.jpg','common-thumb');\\n")
+        r=inspect_coverage(src,'characters')
+        self.assertEqual(r['characters_with_artwork_pointer_hint'],3)
+        self.assertEqual(r['distinct_media_pointer_hints']['image'],2)
+        self.assertEqual(r['distinct_media_pointer_hints']['thumb'],1)
+        self.assertEqual(r['image_urls_verified'],0)
+        self.assertEqual(r['image_rights_approved'],0)
+        self.assertNotIn('same.jpg',str(r))
+
+    def test_oversized_art_pointer_counted_but_not_in_distinct_set(self):
+        src=self.dump('characters',['id','romji','japanese','image','thumb'],
+                      "INSERT INTO `characters` VALUES (1,'Alpha',NULL,'"
+                      +('X'*4000)+"',NULL);\\n")
+        r=inspect_coverage(src,'characters')
+        self.assertEqual(r['characters_with_artwork_pointer_hint'],1)
+        self.assertEqual(r['distinct_media_pointer_hints']['image'],0)
+        self.assertEqual(r['oversized_media_pointers_excluded_from_diversity']['image'],1)
 
     def test_limits_and_safety(self):
         src=self.dump('publishers',['id','english','japanese','romjititle'],
