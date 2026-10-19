@@ -123,6 +123,7 @@ def inspect_ids(path, table, max_uncompressed_bytes=MAX_BYTES):
                 if not observed_columns or observed_columns[0] != EXPECTED[table]:
                     raise ValueError('Unknown first-column SQL mapping; refuse count')
                 current = parser
+                current.done = False
                 current.feed(frag[insert.end():])
                 active = not current.done
     if not observed_columns or observed_columns[0] != EXPECTED[table]:
