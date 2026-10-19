@@ -37,7 +37,8 @@ CREATE TABLE `assignments` (
         self.assertEqual(result['insert_statements_by_table']['characters'], 2)
         self.assertEqual(result['compressed_bytes'], src.stat().st_size)
         self.assertEqual(len(result['compressed_sha256']), 64)
-        self.assertFalse(result['character_rows_measured'])
+        self.assertTrue(result['character_rows_measured'])
+        self.assertEqual(result['inserted_tuples_by_table']['characters'], 3)
         self.assertEqual(result['rights_approved_artworks'], 0)
 
     def test_giant_sql_line_cannot_be_accidentally_emitted(self):
@@ -45,6 +46,7 @@ CREATE TABLE `assignments` (
         result = inspect_file(src)
         self.assertEqual(result['insert_statements_by_table'], {'characters':1})
         self.assertEqual(result['overlong_sql_lines_skipped'], 1)
+        self.assertEqual(result['inserted_tuples_by_table']['characters'], 1)
         self.assertNotIn('X'*100, str(result))
 
     def test_decompression_limit_and_missing_gz(self):
