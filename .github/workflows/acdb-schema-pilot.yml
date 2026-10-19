@@ -51,7 +51,8 @@ jobs:
             /tmp/acdb-source-audit/publishers.sql.gz \
             /tmp/acdb-source-audit/assignments.sql.gz \
             --output /tmp/acdb-source-audit/relationship-integrity-report.json
-          # Count candidate name/image pointer field presence without accessing
+          # Count candidate name/image-pointer field presence AND number of distinct
+          # source pointer strings (in-memory hashes only), without accessing
           # any image URLs or exporting individual copyrighted/source records.
           python -m scripts.acdb_field_coverage \
             /tmp/acdb-source-audit/characters.sql.gz \
