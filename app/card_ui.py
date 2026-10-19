@@ -59,6 +59,7 @@ def owned_caption(character):
 
 
 def collection_text(cards, total, page):
+    """Compact Telegram-native series sections, not generated card artwork."""
     if not cards:
         return ("🃏 <b>MY GLOBAL COLLECTION</b>\n"
                 "━━━━━━━━━━━━━━━━\n"
@@ -69,14 +70,20 @@ def collection_text(cards, total, page):
         "🃏 <b>MY GLOBAL COLLECTION</b>",
         "━━━━━━━━━━━━━━━━",
         f"📚 <b>{total}</b> cards · Showing {first}–{last}",
-        "",
     ]
-    for number, card in enumerate(cards, first):
-        star = "⭐ " if card.get("favorite") else ""
-        lines.append(f"<b>{number:02d}.</b> {star}<b>{clean(card.get('name'),42)}</b>")
-        lines.append(f"    💠 {clean(card.get('rarity'),23)} · Gen {int(card['generation'])} "
-                     f"· <code>{clean(public_card_id(card),32)}</code>")
-    lines.append("\n👇 <i>Tap a character below to open its artwork.</i>")
+    # A page may contain cards from multiple series. Group only visible rows,
+    # never invent full-series collection totals from a partial page.
+    groups = {}
+    for card in cards:
+        groups.setdefault(str(card.get('series') or 'Other'), []).append(card)
+    for series, members in groups.items():
+        lines.append(f"\n🍀 <b>{clean(series, MAX_SERIES)}</b> · {len(members)} shown")
+        for card in members:
+            star = "⭐ " if card.get('favorite') else ""
+            lines.append(f"<code>{clean(public_card_id(card),32)}</code>  "
+                         f"{star}<b>{clean(card.get('name'),44)}</b>")
+            lines.append(f"    💠 {clean(card.get('rarity'),23)} · Gen {int(card['generation'])}")
+    lines.append("\n👇 <i>Tap a character below to view its photo.</i>")
     return "\n".join(lines)
 
 
