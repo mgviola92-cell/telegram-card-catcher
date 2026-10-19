@@ -213,19 +213,21 @@ def changetime(msg):
     bot.reply_to(msg,f'✅ Spawn every {value} messages.')
 
 
-def send_spawn(chat_id,char):
-    caption=card_ui.spawn_caption(char)
-    sources=[char.get('telegram_file_id'),char.get('image_url')]
-    for source in filter(None,sources):
-        try:
-            message=bot.send_photo(chat_id,source,caption=caption,parse_mode='HTML')
-            if message.photo and not char.get('telegram_file_id'):
-                storage.cache_image(char['id'],message.photo[-1].file_id)
-            return
-        except Exception:
-            logging.exception('Spawn image source failed')
-    # Do not leave an uncatchable invisible card active.
-    storage.clear_spawn(chat_id,char['id'])
+def send_spawn(chat_id, char):
+    """One Telegram photo attempt per source; cache failure never reposts."""
+    caption = card_ui.spawn_caption(char)
+    artwork = dict(char, character_id=char['id'])
+    try:
+        sent = send_owned_card(bot, storage, chat_id, artwork,
+                              caption=caption, parse_mode='HTML')
+    except Exception:
+        logging.exception('Unexpected spawn photo delivery error')
+        sent = None
+    if sent:
+        return
+    # An invisible spawn cannot be guessed. If Telegram rejected the image,
+    # unblock the group for the next activity-triggered spawn.
+    storage.clear_spawn(chat_id, char['id'])
     logging.error('Spawn discarded: no usable image for character %s',char['id'])
 
 
