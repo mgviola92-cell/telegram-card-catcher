@@ -176,9 +176,19 @@ def favorites_command(msg):
     if command == '/unfav' and len(codes) != 1:
         bot.reply_to(msg, 'Usage: /unfav ID')
         return
-    changed = storage.set_favorites(msg.from_user.id, codes, command != '/unfav')
-    bot.reply_to(msg, f'⭐ Updated {changed} card(s).' if changed else
-                 'No changes. Check that you own every card ID.')
+    enabled = command != '/unfav'
+    changed = storage.set_favorites(msg.from_user.id, codes, enabled)
+    if changed == 1 and len(codes) == 1:
+        card = storage.get_card(codes[0])
+        if card and card['owner_id'] == msg.from_user.id:
+            bot.reply_to(msg, card_ui.favourite_text(card, enabled),
+                         parse_mode='HTML')
+            return
+    if changed:
+        bot.reply_to(msg, f"✅ <b>{changed} card(s) updated.</b>",
+                     parse_mode='HTML')
+    else:
+        bot.reply_to(msg, 'No changes. Check that you own every card ID.')
 
 
 @bot.message_handler(commands=['search'])
@@ -191,8 +201,7 @@ def search_command(msg):
     if not found:
         bot.reply_to(msg, 'No matching characters found.')
         return
-    lines = [f"#{c['id']} · {c['name']} — {c['series']} ({c['rarity']})" for c in found]
-    bot.reply_to(msg, '🔎 Character Search\n' + '\n'.join(lines))
+    bot.reply_to(msg, card_ui.search_text(found), parse_mode='HTML')
 
 @bot.message_handler(commands=['changetime'])
 def changetime(msg):
