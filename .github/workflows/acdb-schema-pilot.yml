@@ -52,6 +52,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: acdb-metadata-schema-review
-          path: |\n            /tmp/acdb-source-audit/metadata-schema-report.json\n            /tmp/acdb-source-audit/distinct-id-report.json
+          path: |
+            /tmp/acdb-source-audit/metadata-schema-report.json
+            /tmp/acdb-source-audit/distinct-id-report.json
           if-no-files-found: ignore
           retention-days: 7
