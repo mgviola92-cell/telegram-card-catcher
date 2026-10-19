@@ -37,8 +37,9 @@ TEST_DATABASE_URL=postgresql://test_runner:password@localhost:5432/cardkout_test
 | Simulated workload | With duplicate index | Without duplicate | Index savings | Without duplicate / card |
 | --- | ---: | ---: | ---: | ---: |
 | 100,000 owned cards; 100 shared characters | 38,551,552 bytes | 33,816,576 bytes | 4,734,976 bytes | 338.17 bytes |
+| 1,000,000 owned cards; 100 shared characters | 385,359,872 bytes | 353,796,096 bytes | 31,563,776 bytes | 353.80 bytes |
 
-Source: GitHub Actions 39274470832 (CI run executing the opt-in 100k experiment).
+Sources: GitHub Actions runs 39274470832 (100k) and 39274862836 (1 million). Both ran on disposable PostgreSQL 16, with all other tables excluded from the measurements. The 1-million-card experiment was intentionally a one-off scale check; regular CI should remain at 100k.
 
 These are **real PostgreSQL relation/index sizes for synthetic test rows**,
 not actual production Neon measured row sizes. They omit character/variant
