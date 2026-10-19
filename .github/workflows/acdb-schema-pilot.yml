@@ -51,6 +51,12 @@ jobs:
             /tmp/acdb-source-audit/publishers.sql.gz \
             /tmp/acdb-source-audit/assignments.sql.gz \
             --output /tmp/acdb-source-audit/relationship-integrity-report.json
+          # Count candidate name/image pointer field presence without accessing
+          # any image URLs or exporting individual copyrighted/source records.
+          python -m scripts.acdb_field_coverage \
+            /tmp/acdb-source-audit/characters.sql.gz \
+            /tmp/acdb-source-audit/publishers.sql.gz \
+            --output /tmp/acdb-source-audit/metadata-field-coverage.json
           echo 'ACDB_METADATA_ONLY=true'
           echo 'NO_AGE_UNREVIEWED_CHARACTERS_IMPORTED=true'
           echo 'NO_IMAGES_DOWNLOADED=true'
@@ -63,5 +69,6 @@ jobs:
             /tmp/acdb-source-audit/metadata-schema-report.json
             /tmp/acdb-source-audit/distinct-id-report.json
             /tmp/acdb-source-audit/relationship-integrity-report.json
+            /tmp/acdb-source-audit/metadata-field-coverage.json
           if-no-files-found: ignore
           retention-days: 7
