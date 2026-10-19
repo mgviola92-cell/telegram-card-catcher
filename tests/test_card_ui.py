@@ -125,6 +125,28 @@ class CardUITests(unittest.TestCase):
         list_text=card_ui.collection_text(cards,8,0)
         self.assertLess(len(list_text),4096)
 
+    def test_favourite_confirmation_has_screenshot_style_bold_labels(self):
+        confirmed=card_ui.favourite_text(CARD)
+        self.assertIn('𝗡𝗘𝗪 𝗙𝗔𝗩𝗢𝗨𝗥𝗜𝗧𝗘!',confirmed)
+        self.assertIn('<b>NAME:</b> <b>Alice</b>',confirmed)
+        self.assertIn('<b>RARITY:</b> ⚪ <b>Common</b>',confirmed)
+        self.assertIn('<b>SERIES:</b>',confirmed)
+        self.assertIn('<b>ID:</b> <code>6103</code>',confirmed)
+        removed=card_ui.favourite_text(CARD,False)
+        self.assertIn('𝗥𝗘𝗠𝗢𝗩𝗘𝗗',removed)
+        self.assertEqual(removed.count('<b>'),removed.count('</b>'))
+
+    def test_search_is_clear_catalog_not_ownership_id(self):
+        found=[dict(CARD,id=5,name='Alice & <Bob>',
+                    series='Game <Series>',rarity='Uncommon')]
+        text=card_ui.search_text(found)
+        self.assertIn('Catalog #5',text)
+        self.assertIn('Alice &amp; &lt;Bob&gt;',text)
+        self.assertIn('Game &lt;Series&gt;',text)
+        self.assertIn('🟢 <b>Uncommon</b>',text)
+        self.assertIn('not owned cards',text)
+        self.assertEqual(text.count('<b>'),text.count('</b>'))
+
     def test_page_navigation(self):
         cards=[CARD]
         kb=card_ui.collection_keyboard(OWNER,cards,1,17)
