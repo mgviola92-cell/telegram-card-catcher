@@ -5,8 +5,9 @@ from flask import Flask, abort, request
 import telebot
 from telebot import types
 from app import storage
-from app.webhook_guard import begin_update
+from app.webhook_guard import begin_update, complete_update, release_failed_update
 from app import welcome
+from app import economy, trading, collection_ui, media_delivery, catching
 
 logging.basicConfig(level=logging.INFO)
 TOKEN = os.environ['BOT_TOKEN']
@@ -18,23 +19,35 @@ storage.initialize()
 
 
 def collection_text(user_id, page):
-    cards,total = storage.get_cards(user_id,page)
-    pages = max(1,(total+7)//8)
-    page = min(max(0,page),pages-1)
-    if page*8>=total and total:
-        cards,total = storage.get_cards(user_id,page)
+    cards,total = storage.get_cards(user_id,page,size=collection_ui.PAGE_SIZE)
+    page = collection_ui.normalized_page(page,total)
+    if page*collection_ui.PAGE_SIZE>=total and total:
+        cards,total = storage.get_cards(user_id,page,size=collection_ui.PAGE_SIZE)
     if not cards:
         return '🃏 Your harem is empty. Catch a character in a group!',None
-    rows = [f"{'⭐ ' if c['favorite'] else ''}• {c['name']} · {c['rarity']} · Gen {c['generation']}\n  🆔 {c['code']}" for c in cards]
-    keyboard = types.InlineKeyboardMarkup()
-    buttons = []
-    if page:
-        buttons.append(types.InlineKeyboardButton('◀️',callback_data=f'harem:{user_id}:{page-1}'))
-    buttons.append(types.InlineKeyboardButton(f'{page+1}/{pages}',callback_data='noop'))
-    if page+1<pages:
-        buttons.append(types.InlineKeyboardButton('▶️',callback_data=f'harem:{user_id}:{page+1}'))
-    keyboard.row(*buttons)
+    progress=storage.get_series_progress(user_id,[c['series'] for c in cards])
+    rows = [f"{'⭐ ' if c['favorite'] else ''}• {c['name']} (x{c['owned_copies']}) · {c['rarity']} · Gen {c['generation']}\n  🎬 {c['series']} ({progress[c['series']][0]}/{progress[c['series']][1]}) · 🆔 {c['code']}" if c['series'] in progress else f"• {c['name']} · {c['series']} · 🆔 {c['code']}" for c in cards]
+    keyboard = collection_ui.page_markup(user_id,cards,page,total)
     return f'🃏 Global Harem · {total} cards\n\n'+'\n'.join(rows),keyboard
+
+
+
+def recent_text(user_id, page):
+    cards,total=storage.get_cards(user_id,page,size=collection_ui.PAGE_SIZE)
+    page=collection_ui.normalized_page(page,total)
+    if page*collection_ui.PAGE_SIZE>=total and total:
+        cards,total=storage.get_cards(user_id,page,size=collection_ui.PAGE_SIZE)
+    if not cards:
+        return '🕒 No collected characters yet. Catch one in a group!',None
+    progress=storage.get_series_progress(user_id,[c['series'] for c in cards])
+    rows=[]
+    for c in cards:
+        ratio=progress.get(c['series'])
+        series=f"{c['series']} ({ratio[0]}/{ratio[1]})" if ratio else c['series']
+        rows.append(f"🃏 {c['name']} (x{c['owned_copies']})\n"
+                    f"💎 {c['rarity']} · Gen {c['generation']}\n"
+                    f"🎬 {series}\n🆔 {c['code']}")
+    return f"🕒 Recent Characters · {total} cards\n\n"+'\n\n'.join(rows),collection_ui.recent_markup(user_id,page,total)
 
 
 @bot.message_handler(commands=['start'])
@@ -73,30 +86,121 @@ def welcome_menu_callback(q):
     bot.answer_callback_query(q.id)
 
 
-@bot.message_handler(commands=['harem','collection','recent'])
+@bot.message_handler(commands=['harem','collection'])
 def harem(msg):
     text,keyboard = collection_text(msg.from_user.id,0)
     bot.reply_to(msg,text,reply_markup=keyboard)
 
 
-@bot.callback_query_handler(func=lambda q: q.data.startswith('harem:') or q.data=='noop')
+
+@bot.message_handler(commands=['recent'])
+def recent(msg):
+    text,keyboard=recent_text(msg.from_user.id,0)
+    bot.reply_to(msg,text,reply_markup=keyboard)
+
+
+@bot.message_handler(commands=['showcase'])
+def showcase(msg):
+    cards,total=storage.get_cards(msg.from_user.id,page=0,size=5)
+    if not cards:
+        bot.reply_to(msg,'🃏 Your harem is empty. Catch characters first!')
+        return
+    featured=next((c for c in cards if c['favorite']),cards[0])
+    caption=(f"🃏 COLLECTION SHOWCASE • {total} CARDS\n"
+             f"━━━━━━━━━━━━━━━━━━\n"
+             f"✨ {featured['name']} — {featured['series']}\n"
+             f"💎 {featured['rarity']} · Gen {featured['generation']}\n"
+             f"🆔 {featured['code']}\n\n"
+             "Recent catches:\n" +
+             '\n'.join(f"• {c['name']} · {c['code']}" for c in cards))
+    if media_delivery.send_photo(bot,storage,msg.chat.id,featured,caption=caption):
+        return
+    bot.reply_to(msg,caption)
+
+
+@bot.callback_query_handler(func=lambda q: q.data.startswith(('harem:','recent:')) or q.data=='noop')
 def turn_page(q):
     if q.data=='noop':
         bot.answer_callback_query(q.id)
         return
     try:
-        _,owner,page = q.data.split(':')
+        mode,owner,page = q.data.split(':')
         if int(owner)!=q.from_user.id:
             bot.answer_callback_query(q.id,'This is not your collection.',show_alert=True)
             return
         page = int(page)
         if page<0 or page>99999:
             raise ValueError
-        text,keyboard = collection_text(q.from_user.id,page)
-        bot.edit_message_text(text,q.message.chat.id,q.message.message_id,reply_markup=keyboard)
+        text,keyboard = (recent_text(q.from_user.id,page) if mode=='recent' else collection_text(q.from_user.id,page))
+        try:
+            bot.edit_message_text(text,q.message.chat.id,q.message.message_id,reply_markup=keyboard)
+        except telebot.apihelper.ApiTelegramException as exc:
+            if 'message is not modified' not in str(exc).lower():
+                raise
         bot.answer_callback_query(q.id)
     except (ValueError,TypeError):
         bot.answer_callback_query(q.id,'Invalid page.')
+
+
+@bot.callback_query_handler(func=lambda q: bool(q.data) and q.data.startswith(('card:','cardfav:','cardback:')))
+def browse_card(q):
+    try:
+        action, owner, value, *rest = q.data.split(':')
+        if int(owner)!=q.from_user.id:
+            bot.answer_callback_query(q.id,'Not your collection.',show_alert=True)
+            return
+        if action=='cardback':
+            page=int(value)
+            if not 0<=page<=99999:
+                raise ValueError
+            txt,kb=collection_text(q.from_user.id,page)
+            if q.message.content_type=='text':
+                bot.edit_message_text(txt,q.message.chat.id,q.message.message_id,reply_markup=kb)
+            else:
+                bot.send_message(q.message.chat.id,txt,reply_markup=kb)
+                # Remove the old bot photo so Back does not clutter the group.
+                try:
+                    bot.delete_message(q.message.chat.id,q.message.message_id)
+                except telebot.apihelper.ApiTelegramException:
+                    logging.info('Could not delete previous card photo')
+        else:
+            if len(rest)!=1:
+                raise ValueError
+            page=int(rest[0])
+            if not 0<=page<=99999:
+                raise ValueError
+            card=storage.get_card(value)
+            if not card or card['owner_id']!=q.from_user.id:
+                bot.answer_callback_query(q.id,'Card no longer in your collection.',show_alert=True)
+                return
+            if action=='cardfav':
+                changed=storage.toggle_favorite(q.from_user.id,value)
+                if not changed:
+                    bot.answer_callback_query(q.id,'Card no longer in your collection.',show_alert=True)
+                    return
+                card=dict(card,favorite=changed['favorite'])
+            caption=collection_ui.card_caption(card)
+            keyboard=collection_ui.card_markup(q.from_user.id,value,page,card['favorite'])
+            # Favorite action updates the same card; do not repost photos.
+            if action=='cardfav':
+                try:
+                    if q.message.content_type=='photo':
+                        bot.edit_message_caption(caption,q.message.chat.id,
+                                                 q.message.message_id,reply_markup=keyboard)
+                    else:
+                        bot.edit_message_text(caption,q.message.chat.id,
+                                              q.message.message_id,reply_markup=keyboard)
+                except telebot.apihelper.ApiTelegramException as exc:
+                    if 'message is not modified' not in str(exc).lower():
+                        raise
+                bot.answer_callback_query(q.id,'Favorite updated!')
+                return
+            if not media_delivery.send_photo(bot,storage,q.message.chat.id,card,
+                    caption=caption,reply_markup=keyboard):
+                bot.send_message(q.message.chat.id,caption,reply_markup=keyboard)
+        bot.answer_callback_query(q.id)
+    except (ValueError,TypeError,IndexError):
+        bot.answer_callback_query(q.id,'Invalid card page.',show_alert=True)
 
 
 @bot.message_handler(commands=['check','view'])
@@ -109,9 +213,14 @@ def check(msg):
     if not row:
         bot.reply_to(msg,'Card not found.')
         return
-    bot.reply_to(msg,f"🃏 {row['name']} — {row['series']}\n{row['rarity']} · Gen {row['generation']}\n🆔 {row['code']}")
-
-
+    caption=(f"🃏 {row['name']} — {row['series']}\n"
+             f"✨ {row['rarity']} · Gen {row['generation']}\n"
+             f"🆔 {row['code']}")
+    # Request Telegram-hosted media first: zero Render image transfer.
+    # Fall back to Telegram pulling public HTTPS source by URL.
+    if media_delivery.send_photo(bot,storage,msg.chat.id,row,caption=caption):
+        return
+    bot.reply_to(msg,caption)
 
 
 @bot.message_handler(commands=['fav','mfav','unfav'])
@@ -145,6 +254,84 @@ def search_command(msg):
     lines = [f"#{c['id']} · {c['name']} — {c['series']} ({c['rarity']})" for c in found]
     bot.reply_to(msg, '🔎 Character Search\n' + '\n'.join(lines))
 
+
+@bot.message_handler(commands=['gift'])
+def gift_command(msg):
+    if not msg.reply_to_message or not msg.reply_to_message.from_user:
+        bot.reply_to(msg, 'Reply to a player: /gift CODE')
+        return
+    args = msg.text.split()
+    if len(args) != 2:
+        bot.reply_to(msg, 'Usage: reply to player with /gift CODE')
+        return
+    recipient = msg.reply_to_message.from_user
+    if recipient.is_bot:
+        bot.reply_to(msg, 'Cannot gift to bots.')
+        return
+    transferred = economy.gift_card(msg.from_user.id, recipient.id, args[1])
+    bot.reply_to(msg, f'🎁 Card {args[1].upper()} gifted!' if transferred else
+                 'Gift failed: card not owned or invalid receiver.')
+
+
+@bot.message_handler(commands=['trade'])
+def trade_command(msg):
+    if not msg.reply_to_message or not msg.reply_to_message.from_user:
+        bot.reply_to(msg, 'Reply to another player: /trade YOUR_CODE THEIR_CODE')
+        return
+    tokens = msg.text.split()
+    if len(tokens) != 3:
+        bot.reply_to(msg, 'Usage: /trade YOUR_CODE THEIR_CODE')
+        return
+    other = msg.reply_to_message.from_user
+    if other.is_bot:
+        bot.reply_to(msg, 'Cannot trade with bots.')
+        return
+    offer_id = trading.create_offer(msg.from_user.id, other.id, tokens[1], tokens[2])
+    if not offer_id:
+        bot.reply_to(msg, 'Trade failed: check both codes and owners.')
+        return
+    kb = types.InlineKeyboardMarkup()
+    kb.row(types.InlineKeyboardButton('✅ Accept', callback_data=f'trade:{offer_id}:yes'),
+           types.InlineKeyboardButton('❌ Decline', callback_data=f'trade:{offer_id}:no'))
+    bot.reply_to(msg, f'🤝 Trade offer #{offer_id}\n{tokens[1].upper()} ⇄ {tokens[2].upper()}\n'
+                 'Only the recipient can accept within 10 minutes.',reply_markup=kb)
+
+
+@bot.callback_query_handler(func=lambda q: bool(q.data) and q.data.startswith('trade:'))
+def trade_callback(q):
+    try:
+        _,offer_id,decision=q.data.split(':')
+        if decision not in ('yes','no'):
+            raise ValueError
+        ok=trading.finish_offer(int(offer_id),q.from_user.id,decision=='yes')
+        bot.answer_callback_query(q.id,'Trade completed!' if ok and decision=='yes' else
+                                  ('Trade declined.' if ok else 'Invalid or expired trade.'),show_alert=True)
+        if ok:
+            bot.edit_message_reply_markup(q.message.chat.id,q.message.message_id,reply_markup=None)
+    except (ValueError, TypeError):
+        bot.answer_callback_query(q.id,'Invalid trade request.',show_alert=True)
+
+
+@bot.message_handler(commands=['top','gtop','todaygtop'])
+def ranking_command(msg):
+    command=msg.text.split()[0].split('@')[0].lower()
+    if command=='/top' and msg.chat.type=='private':
+        bot.reply_to(msg,'/top is available in groups. Use /gtop for global rankings.')
+        return
+    group_id=msg.chat.id if command=='/top' else None
+    today=command=='/todaygtop'
+    rows=economy.leaderboard(chat_id=group_id,today=today)
+    if not rows:
+        bot.reply_to(msg,'🏆 No catches recorded for this ranking yet.')
+        return
+    title=('/top Group Catchers' if group_id is not None else
+           "Today's Global Catchers" if today else 'Global Top Catchers')
+    lines=[f'🏆 {title}']
+    for index,row in enumerate(rows,1):
+        lines.append(f"{index}. User {row['owner_id']} — {row['total']} catches")
+    bot.reply_to(msg,'\n'.join(lines))
+
+
 @bot.message_handler(commands=['changetime'])
 def changetime(msg):
     if msg.chat.type=='private':
@@ -167,32 +354,42 @@ def changetime(msg):
 
 def send_spawn(chat_id,char):
     caption=f"✨ A character appeared!\nSeries: {char['series']} · {char['rarity']}\nGuess the name!"
-    sources=[char.get('telegram_file_id'),char.get('image_url')]
-    for source in filter(None,sources):
-        try:
-            message=bot.send_photo(chat_id,source,caption=caption)
-            if message.photo and not char.get('telegram_file_id'):
-                storage.cache_image(char['id'],message.photo[-1].file_id)
-            return
-        except Exception:
-            logging.exception('Spawn image source failed')
+    if media_delivery.send_photo(bot,storage,chat_id,
+            dict(char,character_id=char['id']),caption=caption):
+        return
     # Do not leave an uncatchable invisible card active.
-    storage.clear_spawn(chat_id,char['id'])
+    storage.clear_spawn(chat_id,char['id'],char['last_spawn'])
     logging.error('Spawn discarded: no usable image for character %s',char['id'])
+
+
+@bot.message_handler(commands=['catch'])
+def catch_command(msg):
+    if msg.chat.type not in ('group','supergroup') or msg.from_user.is_bot:
+        return
+    name=catching.catch_name(msg.text)
+    if not name:
+        bot.reply_to(msg,'Usage: /catch CHARACTER NAME')
+        return
+    if storage.message_already_caught(msg.chat.id,msg.message_id):
+        return
+    caught=storage.claim(msg.chat.id,msg.from_user.id,name,msg.message_id)
+    if caught:
+        bot.reply_to(msg,catching.catch_result(caught,msg.from_user))
 
 
 @bot.message_handler(func=lambda m: m.chat.type in ('group','supergroup') and bool(m.text) and not m.text.startswith('/'),content_types=['text'])
 def activity(msg):
     if msg.from_user.is_bot:
         return
-    caught=storage.claim(msg.chat.id,msg.from_user.id,msg.text)
-    if caught:
-        bot.reply_to(msg,f"🎉 {caught['name']} caught!\n{caught['rarity']} · Gen {caught['generation']}\n🆔 {caught['code']}")
+    if storage.message_already_caught(msg.chat.id,msg.message_id):
         return
-    spawned=storage.try_spawn(msg.chat.id,SPAWN_MESSAGES)
+    caught=storage.claim(msg.chat.id,msg.from_user.id,catching.catch_name(msg.text),msg.message_id)
+    if caught:
+        bot.reply_to(msg,catching.catch_result(caught,msg.from_user))
+        return
+    spawned=storage.try_spawn(msg.chat.id,SPAWN_MESSAGES,msg.message_id)
     if spawned:
         send_spawn(msg.chat.id,spawned)
-
 
 @app.get('/')
 def health():
@@ -208,8 +405,27 @@ def webhook(secret):
         abort(400)
     if not isinstance(data['update_id'], int):
         abort(400)
-    if not begin_update(data['update_id']):
+    state,lease_token=begin_update(data['update_id'])
+    if state=='done':
         return 'OK',200
-    update=types.Update.de_json(data)
-    bot.process_new_updates([update])
+    if state!='acquired':
+        abort(503)
+    try:
+        update=types.Update.de_json(data)
+        bot.process_new_updates([update])
+    except Exception:
+        logging.exception('Telegram update %s failed; allowing retry',data['update_id'])
+        try:
+            release_failed_update(data['update_id'],lease_token)
+        except Exception:
+            logging.exception('Failed to release webhook lease; it will expire automatically')
+        abort(503)
+    try:
+        completed=complete_update(data['update_id'],lease_token)
+    except Exception:
+        logging.exception('Could not record webhook completion: %s',data['update_id'])
+        abort(503)
+    if not completed:
+        logging.warning('Webhook lease no longer owned: %s',data['update_id'])
+        abort(503)
     return 'OK',200

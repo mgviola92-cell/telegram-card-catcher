@@ -24,66 +24,136 @@ def get_cards(user_id, page=0, size=8):
     page = max(0, min(int(page), 99999))
     with connect() as db:
         total = db.execute('SELECT count(*) AS n FROM owned_cards WHERE owner_id=%s', (user_id,)).fetchone()['n']
-        cards = db.execute("""SELECT o.code,o.generation,o.favorite,c.name,c.series,c.rarity
+        cards = db.execute("""SELECT o.code,o.character_id,o.variant_id,o.generation,o.favorite,c.name,c.series,COUNT(*) OVER (PARTITION BY o.character_id) AS owned_copies,COALESCE(v.rarity,c.rarity) AS rarity,CASE WHEN o.variant_id IS NULL THEN c.telegram_file_id ELSE v.telegram_file_id END AS telegram_file_id,CASE WHEN o.variant_id IS NULL THEN c.image_url ELSE v.image_url END AS image_url
             FROM owned_cards o JOIN characters c ON c.id=o.character_id
+            LEFT JOIN character_variants v ON v.id=o.variant_id
             WHERE o.owner_id=%s ORDER BY o.obtained_at DESC,o.id DESC
             LIMIT %s OFFSET %s""", (user_id, size, page * size)).fetchall()
         return cards, total
 
 
+
+def get_series_progress(user_id, series_names):
+    """Unique collected characters / enabled catalog characters, by series."""
+    names=sorted(set(series_names))
+    if not names:
+        return {}
+    with connect() as db:
+        rows=db.execute("""SELECT c.series,
+            count(*)::integer AS available,
+            count(*) FILTER (WHERE EXISTS (
+                SELECT 1 FROM owned_cards o
+                WHERE o.owner_id=%s AND o.character_id=c.id
+            ))::integer AS collected
+            FROM characters c
+            WHERE c.enabled=true AND c.series=ANY(%s)
+            GROUP BY c.series""",(user_id,names)).fetchall()
+    return {row['series']:(row['collected'],row['available']) for row in rows}
+
+
 def get_card(code):
     with connect() as db:
-        return db.execute("""SELECT o.code,o.generation,o.owner_id,c.name,c.series,c.rarity,c.image_url,c.telegram_file_id
-            FROM owned_cards o JOIN characters c ON c.id=o.character_id WHERE o.code=%s""",
+        return db.execute("""SELECT o.code,o.character_id,o.variant_id,o.generation,o.owner_id,o.favorite,c.name,c.series,COALESCE(v.rarity,c.rarity) AS rarity,COALESCE(v.image_url,c.image_url) AS image_url,CASE WHEN o.variant_id IS NULL THEN c.telegram_file_id ELSE v.telegram_file_id END AS telegram_file_id
+            FROM owned_cards o JOIN characters c ON c.id=o.character_id LEFT JOIN character_variants v ON v.id=o.variant_id WHERE o.code=%s""",
             (code.upper(),)).fetchone()
 
 
-def try_spawn(chat_id, default_every):
+def try_spawn(chat_id, default_every, message_id=None):
     with connect() as db:
         with db.cursor() as cur:
             cur.execute("""INSERT INTO group_settings(chat_id,spawn_every) VALUES (%s,%s)
                 ON CONFLICT (chat_id) DO NOTHING""", (chat_id,default_every))
             setting = cur.execute('SELECT * FROM group_settings WHERE chat_id=%s FOR UPDATE', (chat_id,)).fetchone()
+            if message_id is not None:
+                new_activity=cur.execute("""INSERT INTO counted_messages(chat_id,message_id)
+                    VALUES (%s,%s) ON CONFLICT DO NOTHING RETURNING message_id""",
+                    (chat_id,message_id)).fetchone()
+                if not new_activity:
+                    return None
             if setting['active_character_id'] is not None:
                 # A dropped spawn must not permanently block the group.
                 expired = cur.execute("""SELECT COALESCE(%s < now()-interval '15 minutes',true) AS expired""",
                     (setting['last_spawn'],)).fetchone()['expired']
                 if not expired:
                     return None
-                cur.execute('UPDATE group_settings SET active_character_id=NULL WHERE chat_id=%s', (chat_id,))
+                cur.execute('UPDATE group_settings SET active_character_id=NULL,active_variant_id=NULL WHERE chat_id=%s', (chat_id,))
             count = setting['message_count'] + 1
             if count < setting['spawn_every']:
                 cur.execute('UPDATE group_settings SET message_count=%s WHERE chat_id=%s', (count,chat_id))
                 return None
             # Weighted selection; no image downloads or SQL random sort per row.
             char = cur.execute("""SELECT * FROM characters WHERE enabled=true AND weight>0
+                AND (NULLIF(btrim(telegram_file_id),'') IS NOT NULL OR image_url LIKE 'https://%%')
                 ORDER BY -ln(greatest(random(),0.000001))/weight LIMIT 1""").fetchone()
             if char is None:
                 cur.execute('UPDATE group_settings SET message_count=0 WHERE chat_id=%s', (chat_id,))
                 return None
-            cur.execute("""UPDATE group_settings SET message_count=0,active_character_id=%s,
-                last_spawn=now() WHERE chat_id=%s""", (char['id'],chat_id))
+            variant = cur.execute("""SELECT * FROM character_variants
+                WHERE character_id=%s AND enabled=true AND spawn_weight>0
+                AND (NULLIF(btrim(telegram_file_id),'') IS NOT NULL OR image_url LIKE 'https://%%')
+                ORDER BY -ln(greatest(random(),0.000001))/spawn_weight LIMIT 1""",
+                (char['id'],)).fetchone()
+            # Base character art remains a possible choice alongside variants.
+            if variant and secrets.randbelow(100) < 25:
+                char = dict(char, image_url=variant['image_url'],
+                            telegram_file_id=variant['telegram_file_id'],
+                            rarity=variant['rarity'], variant_id=variant['id'],
+                            variant_label=variant['label'])
+            else:
+                char = dict(char,variant_id=None,variant_label='Original')
+            appearance=cur.execute("""UPDATE group_settings SET message_count=0,active_character_id=%s,
+                active_variant_id=%s,last_spawn=now() WHERE chat_id=%s RETURNING last_spawn""",
+                (char['id'],char['variant_id'],chat_id)).fetchone()
+            char['last_spawn']=appearance['last_spawn']
             return char
 
 
-def cache_image(character_id, file_id):
+def cache_image(character_id, file_id, variant_id=None, expected_url=None):
+    """Cache a Telegram photo against the exact art identity and source URL."""
     with connect() as db:
-        db.execute('UPDATE characters SET telegram_file_id=%s WHERE id=%s', (file_id,character_id))
+        if variant_id is not None:
+            result = db.execute("""UPDATE character_variants SET telegram_file_id=%s
+              WHERE id=%s AND character_id=%s AND image_url=%s RETURNING id""",
+              (file_id, variant_id, character_id, expected_url)).fetchone()
+        else:
+            result = db.execute("""UPDATE characters SET telegram_file_id=%s
+              WHERE id=%s AND image_url=%s RETURNING id""",
+              (file_id, character_id, expected_url)).fetchone()
+        return bool(result)
 
 
-def clear_spawn(chat_id, character_id):
+def clear_cached_image(character_id, variant_id, expected_file_id):
+    """Remove failed Telegram cache ID only if it has not changed."""
     with connect() as db:
-        db.execute('UPDATE group_settings SET active_character_id=NULL WHERE chat_id=%s AND active_character_id=%s',
-                   (chat_id,character_id))
+        if variant_id is not None:
+            db.execute("""UPDATE character_variants SET telegram_file_id=NULL
+                WHERE id=%s AND character_id=%s AND telegram_file_id=%s""",
+                (variant_id, character_id, expected_file_id))
+        else:
+            db.execute("""UPDATE characters SET telegram_file_id=NULL
+                WHERE id=%s AND telegram_file_id=%s""",
+                (character_id, expected_file_id))
 
 
-def claim(chat_id, user_id, guessed):
+def clear_spawn(chat_id, character_id, last_spawn):
+    """Only clear the exact failed appearance, not a later spawn of the same card."""
+    if last_spawn is None:
+        return False
+    with connect() as db:
+        row=db.execute("""UPDATE group_settings
+            SET active_character_id=NULL,active_variant_id=NULL
+            WHERE chat_id=%s AND active_character_id=%s AND last_spawn=%s
+            RETURNING chat_id""",(chat_id,character_id,last_spawn)).fetchone()
+        return bool(row)
+
+
+def claim(chat_id, user_id, guessed, message_id=None):
     guessed = normalize_name(guessed)
     if not guessed or len(guessed)>120:
         return None
     with connect() as db:
         with db.cursor() as cur:
-            setting = cur.execute("""SELECT active_character_id,last_spawn FROM group_settings
+            setting = cur.execute("""SELECT active_character_id,active_variant_id,last_spawn FROM group_settings
                 WHERE chat_id=%s FOR UPDATE""", (chat_id,)).fetchone()
             if not setting or not setting['active_character_id']:
                 return None
@@ -92,7 +162,7 @@ def claim(chat_id, user_id, guessed):
             recent = cur.execute("""SELECT %s >= now()-interval '15 minutes' AS recent""",
                                  (setting['last_spawn'],)).fetchone()['recent']
             if not recent:
-                cur.execute('UPDATE group_settings SET active_character_id=NULL WHERE chat_id=%s', (chat_id,))
+                cur.execute('UPDATE group_settings SET active_character_id=NULL,active_variant_id=NULL WHERE chat_id=%s', (chat_id,))
                 return None
             char = cur.execute('SELECT * FROM characters WHERE id=%s', (setting['active_character_id'],)).fetchone()
             if guessed not in {normalize_name(n) for n in [char['name'],*char['aliases']]}:
@@ -107,10 +177,24 @@ def claim(chat_id, user_id, guessed):
                     break
             else:
                 raise RuntimeError('Unable to allocate card code')
-            cur.execute("""INSERT INTO owned_cards(code,character_id,owner_id,generation)
-                VALUES (%s,%s,%s,%s)""", (code,char['id'],user_id,generation))
-            cur.execute('UPDATE group_settings SET active_character_id=NULL WHERE chat_id=%s', (chat_id,))
-            return dict(char,code=code,generation=generation)
+            cur.execute("""INSERT INTO owned_cards(code,character_id,owner_id,catcher_id,generation,caught_chat_id,variant_id,caught_message_id)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s)""", (code,char['id'],user_id,user_id,generation,chat_id,setting['active_variant_id'],message_id))
+            cur.execute('UPDATE group_settings SET active_character_id=NULL,active_variant_id=NULL WHERE chat_id=%s', (chat_id,))
+            variant=cur.execute('SELECT label,rarity FROM character_variants WHERE id=%s', (setting['active_variant_id'],)).fetchone() if setting['active_variant_id'] else None
+            collection_total=cur.execute('SELECT count(*) AS n FROM owned_cards WHERE owner_id=%s',
+                                         (user_id,)).fetchone()['n']
+            return dict(char,code=code,generation=generation,variant_id=setting['active_variant_id'],variant_label=variant['label'] if variant else 'Original',rarity=variant['rarity'] if variant else char['rarity'],collection_total=collection_total)
+
+
+
+def message_already_caught(chat_id, message_id):
+    """Avoid counting a successfully caught message as fresh activity after retry."""
+    if message_id is None:
+        return False
+    with connect() as db:
+        return db.execute("""SELECT 1 FROM owned_cards
+            WHERE caught_chat_id=%s AND caught_message_id=%s""",
+            (chat_id,message_id)).fetchone() is not None
 
 
 def normalize_name(value):
@@ -139,6 +223,15 @@ def set_favorites(user_id, codes, enabled=True):
             return len(codes)
 
 
+
+def toggle_favorite(user_id, code):
+    """Atomically toggle only a card still owned by this user."""
+    with connect() as db:
+        return db.execute("""UPDATE owned_cards SET favorite=NOT favorite
+            WHERE owner_id=%s AND code=%s RETURNING favorite""",
+            (user_id,code.upper())).fetchone()
+
+
 def search_characters(term, limit=10):
     term = term.strip()
     if len(term) < 2 or len(term) > 80:
@@ -148,3 +241,23 @@ def search_characters(term, limit=10):
         return db.execute('''SELECT id,name,series,rarity FROM characters
             WHERE enabled=true AND (name ILIKE %s ESCAPE '\\' OR series ILIKE %s ESCAPE '\\')
             ORDER BY name,id LIMIT %s''', ('%'+escaped+'%', '%'+escaped+'%', limit)).fetchall()
+
+
+def prune_counted_messages(days=7, batch_size=1000):
+    """Delete only a bounded batch of old replay keys; safe to call periodically.
+
+    Keep the retention window longer than Telegram's normal webhook retry window.
+    """
+    if type(days) is not int or not 3 <= days <= 30:
+        raise ValueError('days must be 3..30')
+    if type(batch_size) is not int or not 1 <= batch_size <= 5000:
+        raise ValueError('batch_size must be 1..5000')
+    with connect() as db:
+        rows=db.execute("""WITH stale AS (
+                SELECT chat_id,message_id FROM counted_messages
+                WHERE counted_at < now() - (%s * interval '1 day')
+                ORDER BY counted_at LIMIT %s
+            ) DELETE FROM counted_messages c USING stale
+            WHERE c.chat_id=stale.chat_id AND c.message_id=stale.message_id
+            RETURNING c.message_id""",(days,batch_size)).fetchall()
+        return len(rows)

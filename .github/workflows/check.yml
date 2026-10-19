@@ -5,6 +5,22 @@ on:
 jobs:
   checks:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: test_runner
+          POSTGRES_PASSWORD: test_password_only
+          POSTGRES_DB: cardkout_test_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test_runner -d cardkout_test_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      TEST_DATABASE_URL: postgresql://test_runner:test_password_only@localhost:5432/cardkout_test_ci
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -13,3 +29,8 @@ jobs:
       - run: pip install -r requirements.txt
       - run: python -m compileall -q main.py app scripts tests
       - run: python -m unittest discover -s tests -v
+      # Telegram pilot catalog is only a small public-domain fixture; no DB writes.
+      - run: python -m scripts.pilot_preflight --catalog data/telegram_pilot_catalog.json --approvals data/telegram_pilot_artwork_approvals.json
+      - run: python -m scripts.spawn_benchmark --sizes 5000 10000 50000
+      # Isolated localhost disposable schema only; never connects to Neon.
+      - run: python -m scripts.benchmark_owned_cards --cards 100000

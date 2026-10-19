@@ -20,9 +20,11 @@ COMMANDS_TEXT = (
     "📚 𝗖𝗔𝗥𝗗 𝗞𝗢𝗨𝗧 — 𝗖𝗢𝗠𝗠𝗔𝗡𝗗𝗦\n"
     "━━━━━━━━━━━━━━━━━━━━\n\n"
     "🃏 𝗖𝗢𝗟𝗟𝗘𝗖𝗧𝗜𝗢𝗡\n"
+    "/catch NAME — Group မှာ Character ဖမ်းရန်\n"
     "/harem — Global Collection ကြည့်ရန်\n"
     "/collection — Collection ကြည့်ရန်\n"
     "/recent — Recent Cards ကြည့်ရန်\n"
+    "/showcase — Artwork ပါတဲ့ Collection Preview\n"
     "/check CODE — Card အချက်အလက်ကြည့်ရန်\n"
     "/view CODE — Card အချက်အလက်ကြည့်ရန်\n\n"
     "⭐ 𝗙𝗔𝗩𝗢𝗥𝗜𝗧𝗘𝗦\n"
@@ -31,10 +33,16 @@ COMMANDS_TEXT = (
     "/unfav CODE — Favorite ဖယ်ရန်\n\n"
     "🔎 𝗦𝗘𝗔𝗥𝗖𝗛\n"
     "/search NAME — Character/Series ရှာရန်\n\n"
+    "🤝 𝗦𝗢𝗖𝗜𝗔𝗟\n"
+    "/gift CODE — Reply ဖြင့် Card လက်ဆောင်ပေးရန်\n"
+    "/trade CODE1 CODE2 — Reply ဖြင့် Trading\n"
+    "/top — Group Catch Ranking\n"
+    "/gtop — Global Card Leaderboard\n"
+    "/todaygtop — Daily Global Ranking\n\n"
     "⚙️ 𝗚𝗥𝗢𝗨𝗣 𝗔𝗗𝗠𝗜𝗡\n"
     "/changetime COUNT — Spawn Message Count ပြင်ရန် (10–500)\n\n"
     "📌 Spawn ပုံပေါ်လာရင် Character နာမည်ကို Chat ထဲမှာ ရိုက်ပါ။\n"
-    "🚧 Trade, Gift, Market, Advanced Cards တွေကို ဆက်တည်ဆောက်နေပါတယ်။"
+    "🚧 Market, Advanced Cards, Events တွေကို ဆက်တည်ဆောက်နေပါတယ်။"
 )
 
 
@@ -64,7 +72,7 @@ GUIDE_TEXT = (
     "① Bot ကို Group ထဲထည့်ပါ။\n"
     "② BotFather မှာ Group Privacy ကို Disable လုပ်ထားရမယ်။\n"
     "③ Group Message Count ပြည့်ရင် Character ပုံပေါ်လာမယ်။\n"
-    "④ Character ရဲ့နာမည်ကို ပထမဆုံးမှန်အောင် ရိုက်ပါ။\n"
+    "④ နာမည်ကို ရိုက်ပါ သို့မဟုတ် /catch NAME သုံးပါ။\n"
     "⑤ ရထားတဲ့ Card ကို /harem နဲ့ ကြည့်ပါ။\n\n"
     "💡 Admin တွေက /changetime 35 နဲ့ Spawn Rate ပြင်နိုင်ပါတယ်။"
 )

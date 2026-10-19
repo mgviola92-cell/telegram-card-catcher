@@ -1,0 +1,75 @@
+name: ACDB metadata schema pilot
+on:
+  push:
+    branches: [feature/large-collection-batch]
+    paths:
+      - '.github/workflows/acdb-schema-pilot.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  schema-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Download bounded official metadata dumps; measure schemas and SQL tuple totals
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/acdb-source-audit
+          cd /tmp/acdb-source-audit
+          trap 'rm -f characters.sql.gz publishers.sql.gz assignments.sql.gz' EXIT
+          for filename in characters.sql.gz publishers.sql.gz assignments.sql.gz; do
+            echo "ACDB_SOURCE_FETCH=${filename}"
+            curl --fail --location --silent --show-error --retry 2 \
+              --connect-timeout 15 --max-time 150 --max-filesize 160000000 \
+              --output "${filename}" \
+              "https://www.animecharactersdatabase.com/hosted/${filename}"
+          done
+          cd "$GITHUB_WORKSPACE"
+          python -m scripts.acdb_schema_audit \
+            /tmp/acdb-source-audit/characters.sql.gz \
+            /tmp/acdb-source-audit/publishers.sql.gz \
+            /tmp/acdb-source-audit/assignments.sql.gz \
+            --output /tmp/acdb-source-audit/metadata-schema-report.json
+          # Independently verify real unique SQL IDs (no names or media exported).
+          python -m scripts.acdb_id_audit \
+            /tmp/acdb-source-audit/characters.sql.gz \
+            /tmp/acdb-source-audit/publishers.sql.gz \
+            /tmp/acdb-source-audit/assignments.sql.gz \
+            --output /tmp/acdb-source-audit/distinct-id-report.json
+          # Confirm actual foreign-key coverage, orphan counts and duplicate
+          # character-title pair counts without exposing names or images.
+          python -m scripts.acdb_relationship_audit \
+            /tmp/acdb-source-audit/characters.sql.gz \
+            /tmp/acdb-source-audit/publishers.sql.gz \
+            /tmp/acdb-source-audit/assignments.sql.gz \
+            --output /tmp/acdb-source-audit/relationship-integrity-report.json
+          # Count candidate name/image-pointer field presence AND number of distinct
+          # source pointer strings (in-memory hashes only), without accessing
+          # any image URLs or exporting individual copyrighted/source records.
+          python -m scripts.acdb_field_coverage \
+            /tmp/acdb-source-audit/characters.sql.gz \
+            /tmp/acdb-source-audit/publishers.sql.gz \
+            --output /tmp/acdb-source-audit/metadata-field-coverage.json
+          echo 'ACDB_METADATA_ONLY=true'
+          echo 'NO_AGE_UNREVIEWED_CHARACTERS_IMPORTED=true'
+          echo 'NO_IMAGES_DOWNLOADED=true'
+      - name: Preserve small aggregate report only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: acdb-metadata-schema-review
+          path: |
+            /tmp/acdb-source-audit/metadata-schema-report.json
+            /tmp/acdb-source-audit/distinct-id-report.json
+            /tmp/acdb-source-audit/relationship-integrity-report.json
+            /tmp/acdb-source-audit/metadata-field-coverage.json
+          if-no-files-found: ignore
+          retention-days: 7

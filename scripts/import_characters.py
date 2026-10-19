@@ -7,6 +7,9 @@ The script validates the entire batch before changing the database.
 import json
 import re
 import sys
+import argparse
+from urllib.parse import urlsplit
+import ipaddress
 from app.storage import connect, RARITIES
 
 CATEGORIES = {'anime','manga','manhwa','webtoon','game','original_ai','other'}
@@ -29,8 +32,23 @@ def validate(items):
             if not isinstance(item.get(field),str) or not 1<=len(item[field].strip())<=150:
                 raise ValueError(f'Item {index} has invalid {field}')
         url=item.get('image_url')
-        if not isinstance(url,str) or not url.startswith('https://') or len(url)>2048:
+        if not isinstance(url,str) or len(url)>2048:
             raise ValueError(f'Item {index} needs an HTTPS image_url')
+        parsed=urlsplit(url)
+        hostname=parsed.hostname or ''
+        try:
+            ipaddress.ip_address(hostname)
+            unsafe=True
+        except ValueError:
+            unsafe=False
+        try:
+            port=parsed.port
+        except ValueError:
+            raise ValueError(f'Item {index} has an invalid URL port')
+        if (parsed.scheme!='https' or not hostname or parsed.username or parsed.password
+                or unsafe or hostname=='localhost' or hostname.endswith('.localhost')
+                or port not in (None,443)):
+            raise ValueError(f'Item {index} has an unsafe image_url')
         rarity=item.get('rarity','Common')
         category=item.get('category','anime')
         aliases=item.get('aliases',[])
@@ -46,25 +64,48 @@ def validate(items):
     return validated
 
 
-def import_batch(items):
+def import_batch(items, batch_size=250):
+    """Upsert bounded batches in one transaction; rollback all on failure."""
     rows=validate(items)
+    if type(batch_size) is not int or not 1<=batch_size<=1000:
+        raise ValueError('batch_size must be an integer from 1 to 1000')
+    query="""INSERT INTO characters(source_key,name,series,aliases,category,rarity,image_url,weight)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
+        ON CONFLICT (source_key) WHERE source_key IS NOT NULL DO UPDATE
+        SET name=EXCLUDED.name, series=EXCLUDED.series, aliases=EXCLUDED.aliases,
+            category=EXCLUDED.category, rarity=EXCLUDED.rarity,
+            image_url=EXCLUDED.image_url, weight=EXCLUDED.weight,
+            telegram_file_id=CASE WHEN characters.image_url IS DISTINCT FROM EXCLUDED.image_url
+                THEN NULL ELSE characters.telegram_file_id END"""
     with connect() as db:
-        for key,name,series,aliases,category,rarity,url,weight in rows:
-            db.execute("""INSERT INTO characters(source_key,name,series,aliases,category,rarity,image_url,weight)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
-                ON CONFLICT (source_key) WHERE source_key IS NOT NULL DO UPDATE
-                SET name=EXCLUDED.name, series=EXCLUDED.series, aliases=EXCLUDED.aliases,
-                    category=EXCLUDED.category, rarity=EXCLUDED.rarity,
-                    image_url=EXCLUDED.image_url, weight=EXCLUDED.weight,
-                    telegram_file_id=CASE WHEN characters.image_url IS DISTINCT FROM EXCLUDED.image_url
-                        THEN NULL ELSE characters.telegram_file_id END""",
-                (key,name,series,aliases,category,rarity,url,weight))
+        with db.cursor() as cur:
+            for start in range(0,len(rows),batch_size):
+                cur.executemany(query,rows[start:start+batch_size])
     return len(rows)
 
 
 if __name__=='__main__':
-    if len(sys.argv)!=2:
-        raise SystemExit('Usage: python -m scripts.import_characters <json_file>')
-    with open(sys.argv[1],encoding='utf-8') as f:
+    parser=argparse.ArgumentParser(description='Review and import approved character metadata')
+    parser.add_argument('json_file')
+    parser.add_argument('--apply',action='store_true',help='Write to PostgreSQL; default only validates')
+    parser.add_argument('--allow-warnings',action='store_true',help='Override catalog duplicate/unknown-series warnings after review')
+    parser.add_argument('--rights-reviewed',action='store_true',help='Confirm human artwork review')
+    parser.add_argument('--approval-manifest',help='JSON list of individually approved source_key, image_url and permission_reference')
+    args=parser.parse_args()
+    with open(args.json_file,encoding='utf-8') as f:
         data=json.load(f)
-    print('Characters imported:',import_batch(data))
+    from scripts.catalog_quality import require_approval
+    result=require_approval(data,allow_warnings=args.allow_warnings)
+    print(json.dumps(result,ensure_ascii=False,indent=2))
+    rows=validate(data)
+    print(f'Validated {len(rows)} character records.')
+    if args.apply:
+        if not args.rights_reviewed or not args.approval_manifest:
+            parser.error('--apply requires --rights-reviewed and --approval-manifest')
+        from scripts.artwork_approval import require_artwork_approval
+        with open(args.approval_manifest,encoding='utf-8') as approval_file:
+            manifest=json.load(approval_file)
+        require_artwork_approval(data,manifest)
+        print('Characters imported:',import_batch(data))
+    else:
+        print('Dry run only. Review image rights, then use --apply to import.')

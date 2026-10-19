@@ -1,0 +1,29 @@
+name: Character snapshot pilot
+on:
+  push:
+    branches: [feature/large-collection-batch]
+    paths:
+      - '.github/workflows/character-snapshot-pilot.yml'
+      - 'scripts/fetch_character_snapshot.py'
+  workflow_dispatch:
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Fetch character metadata and measure actual coverage
+        run: |
+          python -m scripts.fetch_character_snapshot --fetch --output /tmp/characters.min.json --report /tmp/character-coverage.json --stage /tmp/character-review.json
+          python -c "import json; d=json.load(open('/tmp/character-coverage.json')); print('MEASURED_CHARACTER_COVERAGE='+json.dumps(d,ensure_ascii=False))"
+      - name: Upload report only (no unreviewed artwork or raw dump)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: character-coverage-report
+          path: /tmp/character-coverage.json
+          if-no-files-found: ignore
+          retention-days: 7

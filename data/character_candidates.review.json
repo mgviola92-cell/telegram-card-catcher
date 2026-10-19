@@ -1,0 +1,90 @@
+[
+  {
+    "candidate_id": "manual-review-001",
+    "name": "Naruto Uzumaki",
+    "series": "Naruto",
+    "category": "anime",
+    "metadata_status": "source_verified",
+    "artwork_status": "awaiting_permission_review",
+    "image_url": null,
+    "source_key": "wikidata:Q931",
+    "metadata_source_url": "https://www.wikidata.org/wiki/Q931"
+  },
+  {
+    "candidate_id": "manual-review-002",
+    "name": "Sasuke Uchiha",
+    "series": "Naruto",
+    "category": "anime",
+    "metadata_status": "source_verified",
+    "artwork_status": "awaiting_permission_review",
+    "image_url": null,
+    "source_key": "wikidata:Q1740",
+    "metadata_source_url": "https://www.wikidata.org/wiki/Q1740"
+  },
+  {
+    "candidate_id": "manual-review-003",
+    "name": "Sakura Haruno",
+    "series": "Naruto",
+    "category": "anime",
+    "metadata_status": "source_verified",
+    "artwork_status": "awaiting_permission_review",
+    "image_url": null,
+    "source_key": "wikidata:Q203240",
+    "metadata_source_url": "https://www.wikidata.org/wiki/Q203240"
+  },
+  {
+    "candidate_id": "manual-review-004",
+    "name": "Monkey D. Luffy",
+    "series": "One Piece",
+    "category": "anime",
+    "metadata_status": "source_verified",
+    "artwork_status": "awaiting_permission_review",
+    "image_url": null,
+    "source_key": "wikidata:Q477948",
+    "metadata_source_url": "https://www.wikidata.org/wiki/Q477948"
+  },
+  {
+    "candidate_id": "manual-review-005",
+    "name": "Roronoa Zoro",
+    "series": "One Piece",
+    "category": "anime",
+    "metadata_status": "source_verified",
+    "artwork_status": "awaiting_permission_review",
+    "image_url": null,
+    "source_key": "wikidata:Q858432",
+    "metadata_source_url": "https://www.wikidata.org/wiki/Q858432"
+  },
+  {
+    "candidate_id": "manual-review-006",
+    "name": "Nami",
+    "series": "One Piece",
+    "category": "anime",
+    "metadata_status": "source_verified",
+    "artwork_status": "awaiting_permission_review",
+    "image_url": null,
+    "source_key": "wikidata:Q877964",
+    "metadata_source_url": "https://www.wikidata.org/wiki/Q877964"
+  },
+  {
+    "candidate_id": "manual-review-007",
+    "name": "Son Goku",
+    "series": "Dragon Ball",
+    "category": "anime",
+    "metadata_status": "source_verified",
+    "artwork_status": "awaiting_permission_review",
+    "image_url": null,
+    "source_key": "wikidata:Q2142",
+    "metadata_source_url": "https://www.wikidata.org/wiki/Q2142"
+  },
+  {
+    "candidate_id": "manual-review-008",
+    "name": "Vegeta",
+    "series": "Dragon Ball",
+    "category": "anime",
+    "metadata_status": "source_verified",
+    "artwork_status": "awaiting_permission_review",
+    "image_url": null,
+    "source_key": "wikidata:Q180916",
+    "metadata_source_url": "https://www.wikidata.org/wiki/Q180916"
+  }
+]
