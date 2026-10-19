@@ -39,6 +39,16 @@ class CardUITests(unittest.TestCase):
         self.assertEqual(allbuttons[-1].callback_data,'noop')
         self.assertTrue(all(len(b.callback_data.encode())<=64 for b in allbuttons))
 
+    def test_series_sections_have_public_numbers_and_no_fake_catalog_totals(self):
+        cards=[dict(CARD,card_id=6103,name='Alice',series='Wonderland'),
+               dict(CARD,card_id=6104,name='Rabbit',series='Wonderland'),
+               dict(CARD,card_id=6105,name='Hero',series='Another Show')]
+        text=card_ui.collection_text(cards,3,0)
+        self.assertEqual(text.count('🍀'),2)
+        self.assertIn('Wonderland</b> · 2 shown',text)
+        self.assertIn('<code>6105</code>',text)
+        self.assertNotIn('(2/999)',text)
+
     def test_keyboard_close_and_favorite_callback_size(self):
         kb=card_ui.open_card_keyboard(OWNER,CARD['code'],False)
         btns=kb.keyboard[0]
