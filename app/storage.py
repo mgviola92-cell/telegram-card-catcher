@@ -4,6 +4,7 @@ import secrets
 import string
 import psycopg
 from psycopg.rows import dict_row
+from app.card_refs import parse_card_ref
 
 ALPHABET = string.ascii_uppercase + string.digits
 RARITIES = ('Common', 'Uncommon', 'Rare', 'Legendary', 'Mystical',
@@ -24,7 +25,7 @@ def get_cards(user_id, page=0, size=8):
     page = max(0, min(int(page), 99999))
     with connect() as db:
         total = db.execute('SELECT count(*) AS n FROM owned_cards WHERE owner_id=%s', (user_id,)).fetchone()['n']
-        cards = db.execute("""SELECT o.code,o.generation,o.favorite,c.name,c.series,c.rarity
+        cards = db.execute("""SELECT o.id AS card_id,o.code,o.generation,o.favorite,c.name,c.series,c.rarity
             FROM owned_cards o JOIN characters c ON c.id=o.character_id
             WHERE o.owner_id=%s ORDER BY o.obtained_at DESC,o.id DESC
             LIMIT %s OFFSET %s""", (user_id, size, page * size)).fetchall()
@@ -32,10 +33,16 @@ def get_cards(user_id, page=0, size=8):
 
 
 def get_card(code):
+    parsed = parse_card_ref(code)
+    if parsed is None:
+        return None
+    field, value = parsed
+    predicate = "o.id=%s" if field == "id" else "o.code=%s"
     with connect() as db:
-        return db.execute("""SELECT o.code,o.character_id,o.generation,o.owner_id,c.name,c.series,c.rarity,c.image_url,c.telegram_file_id
-            FROM owned_cards o JOIN characters c ON c.id=o.character_id WHERE o.code=%s""",
-            (code.upper(),)).fetchone()
+        return db.execute(f"""SELECT o.id AS card_id,o.code,o.character_id,o.generation,
+                o.owner_id,o.favorite,c.name,c.series,c.rarity,c.image_url,c.telegram_file_id
+            FROM owned_cards o JOIN characters c ON c.id=o.character_id
+            WHERE {predicate}""", (value,)).fetchone()
 
 
 def try_spawn(chat_id, default_every):
@@ -107,10 +114,11 @@ def claim(chat_id, user_id, guessed):
                     break
             else:
                 raise RuntimeError('Unable to allocate card code')
-            cur.execute("""INSERT INTO owned_cards(code,character_id,owner_id,generation)
-                VALUES (%s,%s,%s,%s)""", (code,char['id'],user_id,generation))
+            created = cur.execute("""INSERT INTO owned_cards(code,character_id,owner_id,generation)
+                VALUES (%s,%s,%s,%s) RETURNING id""",
+                (code,char['id'],user_id,generation)).fetchone()
             cur.execute('UPDATE group_settings SET active_character_id=NULL WHERE chat_id=%s', (chat_id,))
-            return dict(char,code=code,generation=generation)
+            return dict(char,code=code,card_id=created['id'],generation=generation)
 
 
 def normalize_name(value):
@@ -124,19 +132,32 @@ def set_spawn_rate(chat_id, count):
 
 
 def set_favorites(user_id, codes, enabled=True):
-    """All-or-nothing, only the requesting owner's cards can change."""
-    codes = list(dict.fromkeys(c.strip().upper() for c in codes if c.strip()))
-    if not codes or len(codes) > 20 or any(len(c) > 32 for c in codes):
+    """All-or-nothing favorites; accept public numeric IDs and legacy codes."""
+    unique_refs = list(dict.fromkeys(str(v).strip() for v in codes))
+    if not 1 <= len(unique_refs) <= 20:
         return 0
+    parsed = [parse_card_ref(v) for v in unique_refs]
+    if any(v is None for v in parsed):
+        return 0
+    public_ids = [v[1] for v in parsed if v[0] == 'id']
+    legacy_codes = [v[1] for v in parsed if v[0] == 'legacy_code']
     with connect() as db:
         with db.cursor() as cur:
-            rows = cur.execute('SELECT code FROM owned_cards WHERE owner_id=%s AND code=ANY(%s) FOR UPDATE',
-                               (user_id, codes)).fetchall()
-            if len(rows) != len(codes):
+            rows = cur.execute("""SELECT id,code FROM owned_cards
+                WHERE owner_id=%s AND (id=ANY(%s) OR code=ANY(%s))
+                FOR UPDATE""", (user_id, public_ids, legacy_codes)).fetchall()
+            ids = {row['id'] for row in rows}
+            if len(ids) != len(parsed):
                 return 0
-            cur.execute('UPDATE owned_cards SET favorite=%s WHERE owner_id=%s AND code=ANY(%s)',
-                        (enabled, user_id, codes))
-            return len(codes)
+            # Validate every requested reference rather than any matching row.
+            known_ids = {row['id'] for row in rows}
+            known_codes = {row['code'] for row in rows}
+            if any((v[1] not in known_ids if v[0] == 'id'
+                    else v[1] not in known_codes) for v in parsed):
+                return 0
+            cur.execute('UPDATE owned_cards SET favorite=%s WHERE owner_id=%s AND id=ANY(%s)',
+                        (enabled, user_id, list(ids)))
+            return len(ids)
 
 
 def search_characters(term, limit=10):
