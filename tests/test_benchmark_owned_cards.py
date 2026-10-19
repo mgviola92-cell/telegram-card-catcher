@@ -2,7 +2,7 @@
 import unittest
 from unittest.mock import patch
 
-from scripts.benchmark_owned_cards import measure, safe_local_test_url
+from scripts.benchmark_owned_cards import measure, safe_local_test_url, SCHEMA_PATH
 from tests.test_db_integration import safe_test_database_url
 
 
@@ -23,6 +23,11 @@ class OwnedCardFootprintTests(unittest.TestCase):
             with self.subTest(n=n), self.assertRaises(ValueError):
                 measure(n)
 
+    def test_new_schema_skips_duplicate_index(self):
+        schema = SCHEMA_PATH.read_text(encoding='utf-8')
+        self.assertIn('CREATE UNIQUE INDEX IF NOT EXISTS owned_cards_generation_unique', schema)
+        self.assertNotIn('CREATE INDEX IF NOT EXISTS owned_cards_by_character', schema)
+
     def test_real_postgres_isolated_index_footprint(self):
         if not safe_test_database_url():
             self.skipTest('Disposable local PostgreSQL not configured')
@@ -33,6 +38,7 @@ class OwnedCardFootprintTests(unittest.TestCase):
         self.assertGreater(report['owned_indexes_bytes'],0)
         self.assertGreater(report['owned_total_bytes_without_duplicate'],0)
         self.assertGreater(report['owned_bytes_per_card_amortized'],0)
+        self.assertTrue(report['legacy_duplicate_index_simulated_in_test'])
         if report['legacy_duplicate_index_present']:
             self.assertGreater(report['duplicate_index_bytes_removed_in_isolated_schema'],0)
             self.assertGreater(report['owned_total_bytes_with_duplicate'],
