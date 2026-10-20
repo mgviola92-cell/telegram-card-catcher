@@ -159,6 +159,47 @@ claim and gift/trade storage operations have transaction-level guards,
 but true exactly-once photo/message output needs a separate durable
 outbox/operation-ID design. Do not claim complete crash-proof reliability.
 
+## Research-backed anime-style art and public attribution
+
+This batch now includes **one real anime-style character source identity**
+(Wikimedia project mascot **Wikipe-tan**) with **two distinct actual Commons
+PNG artworks** (base and alternate) in
+`data/commons_anime_style_pilot_candidates.review.json`. The corresponding
+staged catalog has exactly one character metadata row, without an approved
+image link. Copyright/artist attribution is researched from the actual file
+description pages and **no new art has been imported**. The illustrator's
+name (Kasuga) and the original file licensing alternatives (CC BY-SA 3.0 and
+older; full-length sailor art also 4.0) are recorded as **review hints**,
+not automatic human approval. Additional creator-controlled source leads
+(Kiki from Krita / Pepper from Pepper&Carrot) contain no approved images.
+
+The shared image tables now optionally include author, license name,
+license URL and original file-page link as **metadata only**. The
+`owned_cards` table still never stores image URLs, source URLs, author
+names or picture bytes. `app/artwork_credit.py` renders author/license
+under original Telegram photo captions, hides spoiler-containing source
+filename links during wild spawns, and displays a Source link on
+`/check` after the card is collected. HTML is escaped; Telegram renders
+the unchanged remote original PNG, **no PIL/photo collage**.
+
+Source and variant importers now preserve four-field attribution, and
+approval manifests must match any supplied credit fields **exactly**. The
+manual review-to-catalog assembler carries verified credit fields to both
+sides of that check. Existing uncredited test/legacy entries remain
+backwards-compatible; newly introduced CC works should not be published
+without an independently reviewed author/license/source reference. CI
+includes source/manifest and HTML escaping/spoiler tests and actual
+**disposable Postgres** original-to-variant credit lookup tests. Source
+research details and outstanding permission/delivery checks:
+`docs/open-anime-art-pilot-20261020.md`.
+
+**Honest status:** Two real illustrated files and a licensed-page claim
+have been researched, not validated by actual Telegram photo sends, and
+not added to production. This is an infrastructure proof, not evidence that
+the 148,604 ACDB character IDs have reusable artwork. Popular copyrighted
+franchise art and AI-generated fan art still require source-specific rights
+checks.
+
 ## Before a real release
 
 1. Confirm the green GitHub Actions result on the exact unified branch head.
