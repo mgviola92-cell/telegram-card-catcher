@@ -42,8 +42,10 @@ def list_card(user_id,chat_id,card_ref):
             (card["id"],)).fetchone()
         if not existing or existing["seller_id"] != user_id:
             quota=db.execute(
-                """SELECT count(*) AS n FROM market_listings
-                   WHERE seller_id=%s AND expires_at>now()""",
+                """SELECT count(*) AS n FROM market_listings l
+                   JOIN owned_cards o ON o.id=l.card_id
+                   WHERE l.seller_id=%s AND l.expires_at>now()
+                     AND o.owner_id=l.seller_id""",
                 (user_id,)).fetchone()["n"]
             if quota >= MAX_ACTIVE_LISTINGS:
                 return None
