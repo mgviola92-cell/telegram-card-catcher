@@ -57,6 +57,64 @@ python -m scripts.source_identity_review \
   --output /tmp/identity-candidates.json
 ```
 
+## Source-to-catalog manual release gate (added next batch)
+
+The existing production `scripts/import_characters.py` CLI used to import
+whenever invoked with a catalog file. On this **unmerged development branch**
+the importer is now **dry-run-first**: by default it **never connects to
+PostgreSQL**. Actual writes demand all four deliberate signals:
+`--apply`, `--approval-manifest`, `--rights-reviewed`, and
+`--confirm-database-write IMPORT_APPROVED_CARDS`. The internal
+`import_batch(items, approvals)` API ALSO rejects absent/inconsistent
+per-character permission rows. All upsert batches use one PostgreSQL
+transaction, so failure is not a half-imported catalog.
+
+New `scripts/build_reviewed_catalog.py` accepts two **manually prepared**
+inputs: staged character metadata and a **separate human decisions file**
+keyed by exact `source_key`. Approval records must explicitly include
+`status=approved`, a selected `image_url`, a detailed reviewer explanation
+and five distinct evidence types:
+- `subject_identity` — exact picture/character/series mapping;
+- `source_metadata_terms` — dataset access and reuse rights;
+- `artwork_public_reuse_rights` — permission or sufficiently public artwork;
+- `general_audience_suitability` — image/character safety assessment;
+- `telegram_photo_reachability` — delivery compatibility check.
+
+All evidence fields are HTTPS *pointers to review evidence*, not automatic
+proof of legality or content suitability; manual independent verification
+remains essential. Pending/rejected rows are **not** emitted. Other source
+image pointers cannot override human-reviewed URLs. The prepared output
+contains one catalog row plus one image approval reference **per approved
+character**, and no actual image bytes or individual owner image references.
+
+Example after a human has really completed these reviews:
+
+```bash
+python -m scripts.build_reviewed_catalog \
+  /tmp/licensed-stage.json /tmp/actual-human-review.json \
+  --catalog-out /tmp/manual-approved-catalog.json \
+  --approvals-out /tmp/manual-artwork-approvals.json
+python -m scripts.import_characters /tmp/manual-approved-catalog.json \
+  --approval-manifest /tmp/manual-artwork-approvals.json
+```
+
+Both commands above are **offline/dry-run**, no Telegram/Neon activity. A
+reviewer would need to authorize and separately run the explicit write
+command after ensuring it targets a disposable local DB, then inspect
+results before *ever* considering live import. The current owner has **not**
+authorized a production source import.
+
+### Local PostgreSQL integration
+GitHub Actions now provisions its own disposable PostgreSQL 16 instance
+named `cardkout_test_ci`, with `TEST_DATABASE_URL` restricted by test code
+to localhost/127.0.0.1/::1 and a `cardkout_test*` name. Integration tests
+import a manually-approved synthetic fixture, create a card, verify the
+existing numeric card ID and owner remain unchanged, confirm that a second
+import with the same URL preserves cached Telegram `file_id`, and that
+changing a source URL invalidates the *shared* `file_id` but not ownership.
+No test writes to Neon; no test downloads artwork. UI/native captions and
+current live Telegram bot stay exactly as they were.
+
 ## Source status / remaining work
 
 Earlier official metadata audits (in older separate development PR #2)
