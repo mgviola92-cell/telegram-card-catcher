@@ -125,3 +125,16 @@ CREATE INDEX IF NOT EXISTS character_variants_by_character
 -- Fast exact-title collection progress without scanning the full catalog.
 CREATE INDEX IF NOT EXISTS characters_by_series_enabled
   ON characters(series,id) WHERE enabled=true;
+
+
+-- Shared ARTWORK ATTRIBUTION, not picture storage: license/source links are
+-- informational HTTPS page URLs, distinct from the one original image_url.
+-- Card copies do not duplicate image URLs, art credit, or Telegram file_id.
+ALTER TABLE characters ADD COLUMN IF NOT EXISTS artwork_author TEXT;
+ALTER TABLE characters ADD COLUMN IF NOT EXISTS artwork_license_name TEXT;
+ALTER TABLE characters ADD COLUMN IF NOT EXISTS artwork_license_url TEXT;
+ALTER TABLE characters ADD COLUMN IF NOT EXISTS artwork_page_url TEXT;
+ALTER TABLE character_variants ADD COLUMN IF NOT EXISTS artwork_author TEXT;
+ALTER TABLE character_variants ADD COLUMN IF NOT EXISTS artwork_license_name TEXT;
+ALTER TABLE character_variants ADD COLUMN IF NOT EXISTS artwork_license_url TEXT;
+ALTER TABLE character_variants ADD COLUMN IF NOT EXISTS artwork_page_url TEXT;
