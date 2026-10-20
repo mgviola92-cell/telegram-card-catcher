@@ -1,0 +1,46 @@
+[
+  {
+    "source_key": "review:alice-tenniel-1865",
+    "character_name": "Alice",
+    "series": "Alice's Adventures in Wonderland",
+    "commons_file_title": "File:Alice in Wonderland, Drink me by John Tenniel.jpg",
+    "candidate_image_url": "https://upload.wikimedia.org/wikipedia/commons/3/39/Alice_in_Wonderland%2C_Drink_me_by_John_Tenniel.jpg",
+    "file_page_url": "https://commons.wikimedia.org/wiki/File:Alice_in_Wonderland,_Drink_me_by_John_Tenniel.jpg",
+    "license_hint": "Public Domain Mark (page indication)",
+    "artist_hint": "John Tenniel",
+    "study_note": "Already used by existing live demo; known 181x250 JPEG, not a new anime source."
+  },
+  {
+    "source_key": "review:tin-woodman-denslow-1900",
+    "character_name": "Tin Woodman",
+    "series": "The Wonderful Wizard of Oz",
+    "commons_file_title": "File:Tin Woodman.png",
+    "candidate_image_url": "https://upload.wikimedia.org/wikipedia/commons/f/f9/Tin_Woodman.png",
+    "file_page_url": "https://commons.wikimedia.org/wiki/File:Tin_Woodman.png",
+    "license_hint": "Public Domain Mark (page indication)",
+    "artist_hint": "William Wallace Denslow",
+    "study_note": "Commons describes edited original 1900 Tin Woodman illustration; suitability and use review pending."
+  },
+  {
+    "source_key": "review:scarecrow-denslow-1900",
+    "character_name": "Scarecrow",
+    "series": "The Wonderful Wizard of Oz",
+    "commons_file_title": "File:Wizard of Oz scarecrow detail.png",
+    "candidate_image_url": "https://upload.wikimedia.org/wikipedia/commons/2/27/Wizard_of_Oz_scarecrow_detail.png",
+    "file_page_url": "https://commons.wikimedia.org/wiki/File:Wizard_of_Oz_scarecrow_detail.png",
+    "license_hint": "CC0 1.0 (page indication)",
+    "artist_hint": "William Wallace Denslow; restoration and transparency by Wikimedia contributor",
+    "study_note": "1900 image digitally restored; verify derivative attribution and actual reachability."
+  },
+  {
+    "source_key": "review:dorothy-and-toto-denslow-1900",
+    "character_name": "Dorothy Gale",
+    "series": "The Wonderful Wizard of Oz",
+    "commons_file_title": "File:Dorothy and Toto, 1900.png",
+    "candidate_image_url": "https://upload.wikimedia.org/wikipedia/commons/f/f8/Dorothy_and_Toto%2C_1900.png",
+    "file_page_url": "https://commons.wikimedia.org/wiki/File:Dorothy_and_Toto,_1900.png",
+    "license_hint": "Public Domain Mark (page indication)",
+    "artist_hint": "William Wallace Denslow",
+    "study_note": "Depicts Dorothy and Toto together; human must assess single-character suitability."
+  }
+]
