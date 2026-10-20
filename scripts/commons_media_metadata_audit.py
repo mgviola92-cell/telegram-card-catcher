@@ -48,7 +48,7 @@ def same_canonical_url(first,second):
                 and a.username is None and b.username is None
                 and a.password is None and b.password is None
                 and a.port==b.port
-                and unquote(a.path)==unquote(b.path)
+                and unquote(a.path).replace(" ","_")==unquote(b.path).replace(" ","_")
                 and a.query==b.query and not a.fragment and not b.fragment)
     except ValueError:
         return False
