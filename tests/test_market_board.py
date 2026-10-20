@@ -13,7 +13,7 @@ import psycopg
 from psycopg.conninfo import conninfo_to_dict
 from psycopg.rows import dict_row
 
-from app import market_board,market_board_ui,collection_stats,collection_stats_ui
+from app import market_board,market_board_ui,collection_stats,collection_stats_ui,card_exchange
 
 
 def test_database_url():
@@ -95,6 +95,7 @@ class MarketPostgresTests(unittest.TestCase):
                 self.codes.append(code)
                 self.card_ids.append(card["id"])
         self.patches=[patch("app.market_board.connect",self.connect),
+                      patch("app.card_exchange.connect",self.connect),
                       patch("app.collection_stats.connect",self.connect)]
         for item in self.patches:
             item.start()
@@ -180,6 +181,36 @@ class MarketPostgresTests(unittest.TestCase):
         self.assertEqual(missing["characters"][0]["id"],self.charid)
         self.assertIn("×6",collection_stats_ui.duplicates_text(matching))
         self.assertIn("Market Test",collection_stats_ui.missing_text(missing))
+
+    def test_accepted_gift_removes_active_market_listing_atomically(self):
+        listed=market_board.list_card(self.owner,self.group,self.card_ids[0])
+        self.assertIsNotNone(listed)
+        offer=card_exchange.create_gift(self.owner,self.other,self.card_ids[0])
+        self.assertIsNotNone(offer)
+        self.assertEqual(len(market_board.group_market(self.group)),1)
+        done=card_exchange.finish_offer("gift",offer["offer_id"],self.other,True)
+        self.assertEqual(done["status"],"accepted")
+        self.assertEqual(market_board.group_market(self.group),[])
+        with self.connect() as db:
+            self.assertIsNone(db.execute("SELECT 1 FROM market_listings WHERE card_id=%s",
+                                         (self.card_ids[0],)).fetchone())
+            self.assertEqual(db.execute("SELECT owner_id FROM owned_cards WHERE id=%s",
+                                        (self.card_ids[0],)).fetchone()["owner_id"],self.other)
+
+    def test_accepted_trade_clears_both_parties_market_listings(self):
+        a,b=self.card_ids[0],self.card_ids[6]
+        market_board.list_card(self.owner,self.group,a)
+        market_board.list_card(self.other,self.group,b)
+        self.assertEqual(len(market_board.group_market(self.group)),2)
+        offer=card_exchange.create_trade(self.owner,self.other,a,b)
+        self.assertIsNotNone(offer)
+        self.assertEqual(card_exchange.finish_offer(
+            "trade",offer["offer_id"],self.other,True)["status"],"accepted")
+        self.assertEqual(market_board.group_market(self.group),[])
+        with self.connect() as db:
+            remaining=db.execute("SELECT count(*) AS n FROM market_listings WHERE card_id=ANY(%s)",
+                                 ([a,b],)).fetchone()["n"]
+        self.assertEqual(remaining,0)
 
     def test_collection_queries_validate_inputs(self):
         for args in ((True,10),(0,10),(self.owner,0),(self.owner,13)):
