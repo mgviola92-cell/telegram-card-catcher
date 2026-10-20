@@ -6,9 +6,12 @@ from urllib.error import HTTPError
 from unittest.mock import Mock
 
 from scripts.commons_media_metadata_audit import inspect, inspect_payload, same_canonical_url
+from scripts.prepare_review_queue import make_queue
+from scripts.build_reviewed_catalog import assemble
 
 
 CANDIDATES=json.loads(Path("data/commons_literary_pilot_candidates.review.json").read_text(encoding="utf8"))
+STAGED=json.loads(Path("data/commons_literary_pilot_metadata.stage.json").read_text(encoding="utf8"))
 
 
 def file_page(candidate,*,override=None):
@@ -31,6 +34,19 @@ def response(*pages):
 
 
 class CommonsMediaAuditTests(unittest.TestCase):
+    def test_four_real_sources_form_pending_nonimportable_manual_queue(self):
+        self.assertEqual(len(STAGED),len(CANDIDATES))
+        self.assertEqual({x["source_key"] for x in STAGED},
+                         {x["source_key"] for x in CANDIDATES})
+        self.assertTrue(all("image_url" not in x for x in STAGED))
+        pending=make_queue(STAGED,limit=4)
+        self.assertEqual(pending["review_queue_count"],4)
+        self.assertTrue(all(r["status"]=="pending" for r in pending["review_queue"]))
+        release=assemble(STAGED,pending["review_queue"])
+        self.assertEqual(release["catalog"],[])
+        self.assertEqual(release["approvals"],[])
+        self.assertEqual(release["summary"]["database_writes"],0)
+
     def test_real_candidate_pages_are_staged_but_not_approved(self):
         self.assertEqual(len(CANDIDATES),4)
         self.assertEqual({x["character_name"] for x in CANDIDATES},
