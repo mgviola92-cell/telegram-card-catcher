@@ -13,6 +13,7 @@ from urllib.parse import urlsplit
 
 from scripts.import_characters import MAX_IMPORT_ROWS, validate
 from scripts.artwork_approval import require_artwork_approval
+from scripts.artwork_attribution import CREDIT_FIELDS, credit_tuple
 
 REQUIRED_CHECKS=(
     "subject_identity",
@@ -83,15 +84,21 @@ def assemble(staged, manual):
         item={k:meta[k] for k in fields if k in meta}
         item["source_key"]=key
         item["image_url"]=image
+        credits={field:review[field] for field in CREDIT_FIELDS if field in review}
+        if credits:
+            credit_tuple(credits)  # all fields and two HTTPS evidence pages
+            item.update(credits)
         catalog.append(item)
-        approvals.append({
+        approval={
             "source_key":key,
             "image_url":image,
             "status":"approved",
             "permission_reference":proof["artwork_public_reuse_rights"],
             "review_note":note.strip(),
             "verification_evidence":dict(proof),
-        })
+        }
+        approval.update(credits)
+        approvals.append(approval)
     if catalog:
         validate(catalog)
         require_artwork_approval(catalog,approvals)
