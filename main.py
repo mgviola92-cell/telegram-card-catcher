@@ -9,6 +9,7 @@ from app.webhook_guard import begin_update
 from app import welcome
 from app.owned_media import send_owned_card
 from app import card_ui
+from app import card_exchange, catch_rankings, card_social_ui
 from app.card_refs import public_card_id
 
 logging.basicConfig(level=logging.INFO)
@@ -202,6 +203,85 @@ def search_command(msg):
         bot.reply_to(msg, 'No matching characters found.')
         return
     bot.reply_to(msg, card_ui.search_text(found), parse_mode='HTML')
+
+@bot.message_handler(commands=['gift','trade'])
+def exchange_command(msg):
+    """Reply to a person: explicit recipient acceptance prevents silent transfer."""
+    command = msg.text.split()[0].split('@')[0].lower()
+    if msg.chat.type not in ('group','supergroup'):
+        bot.reply_to(msg,'🎁 Gifts and trades must be offered in a group by replying to the person.')
+        return
+    target = getattr(getattr(msg,'reply_to_message',None),'from_user',None)
+    if (not target or getattr(target,'is_bot',False)
+        or getattr(msg.from_user,'is_bot',False)
+        or target.id == msg.from_user.id):
+        bot.reply_to(msg,'Reply to another real member’s message to make an offer.')
+        return
+    args=msg.text.split()[1:]
+    if command=='/gift' and len(args)==1:
+        offer=card_exchange.create_gift(msg.from_user.id,target.id,args[0])
+        kind='gift'
+    elif command=='/trade' and len(args)==2:
+        offer=card_exchange.create_trade(msg.from_user.id,target.id,args[0],args[1])
+        kind='trade'
+    else:
+        bot.reply_to(msg,'Usage (reply to a member): /gift MY_ID or /trade MY_ID THEIR_ID')
+        return
+    if not offer:
+        bot.reply_to(msg,'Offer unavailable. Check card IDs, ownership and pending-offer limit.')
+        return
+    card_ids=([offer['card_id']] if kind=='gift' else
+              [offer['sender_card_id'],offer['receiver_card_id']])
+    caption=card_social_ui.offer_caption(
+        kind, msg.from_user.first_name, target.first_name, card_ids)
+    bot.reply_to(msg, caption, parse_mode='HTML',
+                 reply_markup=card_social_ui.exchange_keyboard(kind,offer['offer_id']))
+
+
+@bot.callback_query_handler(
+    func=lambda q: bool(q.data) and q.data.startswith('exchange:'))
+def exchange_callback(q):
+    parts=q.data.split(':')
+    if (len(parts)!=4 or parts[0]!='exchange'
+        or parts[1] not in ('g','t')
+        or parts[3] not in ('a','d') or not parts[2].isdigit()):
+        bot.answer_callback_query(q.id,'Invalid offer.',show_alert=True)
+        return
+    offer_id=int(parts[2])
+    kind='gift' if parts[1]=='g' else 'trade'
+    result=card_exchange.finish_offer(kind,offer_id,q.from_user.id,parts[3]=='a')
+    if result is None:
+        bot.answer_callback_query(q.id,
+            'Only the recipient can respond to an active offer.',show_alert=True)
+        return
+    response=card_social_ui.result_caption(kind,result['status'],
+                                           result.get('card_ids'))
+    try:
+        bot.edit_message_text(response,q.message.chat.id,q.message.message_id,
+                              parse_mode='HTML',reply_markup=None)
+    except telebot.apihelper.ApiTelegramException:
+        logging.exception('Gift/trade settled; Telegram message update failed')
+    bot.answer_callback_query(q.id,result['status'].capitalize())
+
+
+@bot.message_handler(commands=['top','gtop','today'])
+def top_command(msg):
+    command=msg.text.split()[0].split('@')[0].lower()
+    if command=='/gtop':
+        if msg.chat.type not in ('group','supergroup'):
+            bot.reply_to(msg,'Use /gtop in a group.')
+            return
+        entries=catch_rankings.catch_leaderboard(chat_id=msg.chat.id)
+        kind='group'
+    elif command=='/today':
+        entries=catch_rankings.catch_leaderboard(today=True)
+        kind='today'
+    else:
+        entries=catch_rankings.catch_leaderboard()
+        kind='global'
+    bot.reply_to(msg,card_social_ui.leaderboard_caption(entries,kind),
+                 parse_mode='HTML',disable_web_page_preview=True)
+
 
 @bot.message_handler(commands=['changetime'])
 def changetime(msg):
