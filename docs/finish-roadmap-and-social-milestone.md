@@ -52,6 +52,41 @@ validate audit events and immutable catch ranks after gift, and remove all
 fixture records. No Telegram token or production Neon/Render is accessed by
 CI. This is NOT yet a Telegram live test.
 
+## Additional batch: artwork variants with zero image duplication
+
+The same PR now includes a **working shared artwork-variant layer**, intended
+to enable multiple *licensed/reviewed* illustrations of one Anime/Game
+character without per-player picture storage:
+
+- `character_variants` has a shared numeric PK, character ID, short label,
+  approved HTTPS original URL, cached Telegram file-ID text, rarity, spawn
+  weight, and `enabled` flag. **New variants are disabled by default**.
+- `group_settings.active_variant_id` captures the chosen appearance;
+  `owned_cards.variant_id` preserves which art the owner actually caught.
+  `/check NUMERIC_ID` and card detail callbacks join the same shared variant
+  table. The collectible card row stores **no artwork URL or file ID**.
+- A small fraction of eligible spawns select an enabled variant; original art
+  remains available. Disabled/unreviewed art never becomes a random spawn.
+- If Telegram accepts the image URL, `owned_media` writes one cached
+  `file_id` into the **correct shared variant**, only if the current
+  variant URL matches the one actually sent. Original base art has the same
+  URL consistency condition. This avoids rendering or image duplication.
+- `scripts/import_variants.py` defaults to a no-DB-access dry run. It
+  requires matching per-variant human-review manifest checks for exact
+  character/artwork identity, public reuse rights, upstream source terms,
+  content suitability, HTTPS permission reference, and substantive note.
+  Real writes additionally require `--apply --rights-reviewed --confirm
+  IMPORT_REVIEWED_VARIANTS`. A human review JSON claims evidence and **does
+  not by itself prove copyright rights**; it must be independently verified.
+  Correctly approved variants are the only records enabled by the importer.
+- Dedicated unit and disposable PostgreSQL CI tests cover enabled variant
+  spawns, caught copy identity, numeric card lookups, correct shared photo
+  cache, stale URL protection, transfers preserving exact variant art,
+  disabled/unreviewed variant exclusion, URL and proof verification,
+  and default no-DB operation.
+- **No new approved Anime/Game artwork was imported**, no production schema
+  migration or Render deploy was performed. Artwork candidates remain gated.
+
 ## Remaining release blockers / honest status
 
 1. **Most important:** a genuine, sizeable, source-permitted and correctly
