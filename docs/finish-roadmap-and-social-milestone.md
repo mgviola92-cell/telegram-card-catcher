@@ -87,6 +87,22 @@ character without per-player picture storage:
 - **No new approved Anime/Game artwork was imported**, no production schema
   migration or Render deploy was performed. Artwork candidates remain gated.
 
+## Added: actual collector statistics and series completion
+
+Instead of treating all caught copies as different characters:
+`/stats` now displays owned cards, **distinct character identities**,
+favourite count, alternate-art ownership count and enabled catalog size.
+`/progress` lists the user's top collected series with current unique/
+available totals. `/series EXACT SERIES NAME` shows progress for one exact
+series; it never falsely claims completion based on duplicate generations.
+All messages use Telegram HTML only and do not fetch/render/store any image.
+
+Queries filter by owner and use shared catalog `characters` rows;
+a partial index on enabled `characters(series,id)` supports series
+progress as the catalog grows. Local disposable PostgreSQL CI creates
+duplicate generations and verifies they count as **one unique character**.
+Production performance with millions of owned cards must still be measured.
+
 ## Remaining release blockers / honest status
 
 1. **Most important:** a genuine, sizeable, source-permitted and correctly
