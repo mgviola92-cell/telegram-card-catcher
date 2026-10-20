@@ -138,3 +138,18 @@ ALTER TABLE character_variants ADD COLUMN IF NOT EXISTS artwork_author TEXT;
 ALTER TABLE character_variants ADD COLUMN IF NOT EXISTS artwork_license_name TEXT;
 ALTER TABLE character_variants ADD COLUMN IF NOT EXISTS artwork_license_url TEXT;
 ALTER TABLE character_variants ADD COLUMN IF NOT EXISTS artwork_page_url TEXT;
+
+-- The community trade board is an advertisement ONLY. Transfers remain
+-- controlled by /trade with an explicit consenting recipient; no currency
+-- or real-money exchange is supported. No artwork bytes/URLs are duplicated.
+CREATE TABLE IF NOT EXISTS market_listings (
+  card_id BIGINT PRIMARY KEY REFERENCES owned_cards(id),
+  seller_id BIGINT NOT NULL CHECK(seller_id > 0),
+  chat_id BIGINT NOT NULL,
+  listed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  expires_at TIMESTAMPTZ NOT NULL DEFAULT (now() + interval '24 hours')
+);
+CREATE INDEX IF NOT EXISTS market_listings_by_group
+  ON market_listings(chat_id, expires_at DESC);
+CREATE INDEX IF NOT EXISTS market_listings_by_seller
+  ON market_listings(seller_id,expires_at DESC);
