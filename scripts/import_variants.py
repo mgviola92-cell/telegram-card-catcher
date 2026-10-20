@@ -11,6 +11,7 @@ import re
 from urllib.parse import urlsplit
 
 from app.storage import connect, RARITIES
+from scripts.artwork_attribution import credit_tuple, reviewed_credit
 
 MAX_VARIANTS=1000
 KEY=re.compile(r"[a-zA-Z0-9_.:-]{3,120}\Z")
@@ -82,7 +83,8 @@ def validate(rows, approvals):
         if review is None or review["image_url"]!=url:
             raise ValueError("Variant cannot be enabled without exact-image review")
         accepted.append((source,key,label.strip(),url,
-                         entry.get("rarity","Common"),entry.get("spawn_weight",100)))
+                         entry.get("rarity","Common"),entry.get("spawn_weight",100),
+                         *reviewed_credit(entry,review)))
     if len(checked)!=len(accepted):
         raise ValueError("Unused approval rows indicate source identity mismatch")
     return accepted
@@ -94,22 +96,29 @@ def apply(rows, approvals):
         raise ValueError("Empty variant import is not an approved operation")
     with connect() as db:
         # Single atomic transaction. Missing characters abort everything.
-        for source,key,label,url,rarity,weight in values:
+        for source,key,label,url,rarity,weight,author,license_name,license_url,page_url in values:
             found=db.execute("SELECT id FROM characters WHERE source_key=%s",
                              (source,)).fetchone()
             if not found:
                 raise ValueError("Unknown character source_key: "+source)
             db.execute("""INSERT INTO character_variants
-                (character_id,variant_key,label,image_url,rarity,spawn_weight,enabled)
-                VALUES (%s,%s,%s,%s,%s,%s,true)
+                (character_id,variant_key,label,image_url,rarity,spawn_weight,
+                 enabled,artwork_author,artwork_license_name,
+                 artwork_license_url,artwork_page_url)
+                VALUES (%s,%s,%s,%s,%s,%s,true,%s,%s,%s,%s)
                 ON CONFLICT(character_id,variant_key) DO UPDATE SET
                     label=EXCLUDED.label,image_url=EXCLUDED.image_url,
                     rarity=EXCLUDED.rarity,spawn_weight=EXCLUDED.spawn_weight,
+                    artwork_author=EXCLUDED.artwork_author,
+                    artwork_license_name=EXCLUDED.artwork_license_name,
+                    artwork_license_url=EXCLUDED.artwork_license_url,
+                    artwork_page_url=EXCLUDED.artwork_page_url,
                     enabled=true,
                     telegram_file_id=CASE WHEN
                       character_variants.image_url IS DISTINCT FROM EXCLUDED.image_url
                       THEN NULL ELSE character_variants.telegram_file_id END""",
-                (found["id"],key,label,url,rarity,weight))
+                (found["id"],key,label,url,rarity,weight,
+                 author,license_name,license_url,page_url))
     return len(values)
 
 
