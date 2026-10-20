@@ -5,7 +5,8 @@ from flask import Flask, abort, request
 import telebot
 from telebot import types
 from app import storage
-from app.webhook_guard import begin_update
+from app.webhook_guard import (claim_update, mark_completed, mark_failed,
+                               valid_update_id)
 from app import welcome
 from app.owned_media import send_owned_card
 from app import card_ui
@@ -368,10 +369,31 @@ def webhook(secret):
     data=request.get_json(silent=True)
     if not isinstance(data,dict) or 'update_id' not in data:
         abort(400)
-    if not isinstance(data['update_id'], int):
+    update_id=data['update_id']
+    if not valid_update_id(update_id):
         abort(400)
-    if not begin_update(data['update_id']):
+    # Parse BEFORE claiming: malformed JSON should not permanently occupy an
+    # update_id in the durable inbox.
+    try:
+        update=types.Update.de_json(data)
+    except (TypeError,ValueError):
+        abort(400)
+    state,attempt=claim_update(update_id)
+    if state == 'done':
         return 'OK',200
-    update=types.Update.de_json(data)
-    bot.process_new_updates([update])
+    if state == 'busy':
+        # Don't acknowledge a still-running update; Telegram will retry.
+        return 'RETRY',503,{'Retry-After':'2'}
+    try:
+        bot.process_new_updates([update])
+    except Exception:
+        logging.exception('Telegram update %s failed; release for retry',update_id)
+        try:
+            mark_failed(update_id,attempt)
+        except Exception:
+            logging.exception('Cannot release webhook update %s (lease will expire)',update_id)
+        return 'RETRY',503,{'Retry-After':'2'}
+    if not mark_completed(update_id,attempt):
+        # Lost a processing lease or transient DB error: no false 200 ACK.
+        return 'RETRY',503,{'Retry-After':'2'}
     return 'OK',200
