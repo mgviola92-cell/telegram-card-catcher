@@ -47,7 +47,11 @@ def get_card(code):
                 o.owner_id,o.favorite,c.name,c.series,
                 COALESCE(v.rarity,c.rarity) AS rarity,v.label AS variant_label,
                 CASE WHEN o.variant_id IS NULL THEN c.image_url ELSE v.image_url END AS image_url,
-                CASE WHEN o.variant_id IS NULL THEN c.telegram_file_id ELSE v.telegram_file_id END AS telegram_file_id
+                CASE WHEN o.variant_id IS NULL THEN c.telegram_file_id ELSE v.telegram_file_id END AS telegram_file_id,
+                CASE WHEN o.variant_id IS NULL THEN c.artwork_author ELSE v.artwork_author END AS artwork_author,
+                CASE WHEN o.variant_id IS NULL THEN c.artwork_license_name ELSE v.artwork_license_name END AS artwork_license_name,
+                CASE WHEN o.variant_id IS NULL THEN c.artwork_license_url ELSE v.artwork_license_url END AS artwork_license_url,
+                CASE WHEN o.variant_id IS NULL THEN c.artwork_page_url ELSE v.artwork_page_url END AS artwork_page_url
             FROM owned_cards o JOIN characters c ON c.id=o.character_id
             LEFT JOIN character_variants v ON v.id=o.variant_id
             WHERE {predicate}""", (value,)).fetchone()
@@ -80,7 +84,9 @@ def try_spawn(chat_id, default_every):
             selected=None
             if secrets.randbelow(100) < 25:
                 selected=cur.execute("""SELECT id,label,image_url,
-                        telegram_file_id,rarity FROM character_variants
+                        telegram_file_id,rarity,artwork_author,artwork_license_name,
+                        artwork_license_url,artwork_page_url
+                    FROM character_variants
                     WHERE character_id=%s AND enabled=true AND spawn_weight>0
                     ORDER BY -ln(greatest(random(),0.000001))/spawn_weight LIMIT 1""",
                     (char['id'],)).fetchone()
@@ -88,7 +94,11 @@ def try_spawn(chat_id, default_every):
             if selected:
                 appearance.update(variant_id=selected['id'],variant_label=selected['label'],
                     image_url=selected['image_url'],telegram_file_id=selected['telegram_file_id'],
-                    rarity=selected['rarity'])
+                    rarity=selected['rarity'],
+                    artwork_author=selected['artwork_author'],
+                    artwork_license_name=selected['artwork_license_name'],
+                    artwork_license_url=selected['artwork_license_url'],
+                    artwork_page_url=selected['artwork_page_url'])
             cur.execute("""UPDATE group_settings SET message_count=0,
                 active_character_id=%s,active_variant_id=%s,last_spawn=now()
                 WHERE chat_id=%s""",
