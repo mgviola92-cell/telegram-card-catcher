@@ -93,16 +93,16 @@ class WebhookRouteTests(unittest.TestCase):
             self.assertEqual(response.status_code,503)
 
     def test_none_telegram_update_parse_is_rejected_without_claim(self):
-        with patch.object(self.main.types.Update,"de_json",return_value=None),\\
+        with patch.object(self.main.types.Update,"de_json",return_value=None),\
              patch.object(self.main,"claim_update") as claim:
             response=self.client.post(self.url,json=self.data,headers=self.header)
             self.assertEqual(response.status_code,400)
             claim.assert_not_called()
 
     def test_completion_database_error_never_sends_success_ack(self):
-        with patch.object(self.main.types.Update,"de_json",return_value=object()),\\
-             patch.object(self.main,"claim_update",return_value=("claimed",3)),\\
-             patch.object(self.main,"mark_completed",side_effect=RuntimeError("db offline")),\\
+        with patch.object(self.main.types.Update,"de_json",return_value=object()),\
+             patch.object(self.main,"claim_update",return_value=("claimed",3)),\
+             patch.object(self.main,"mark_completed",side_effect=RuntimeError("db offline")),\
              patch.object(self.main.bot,"process_new_updates") as process:
             response=self.client.post(self.url,json=self.data,headers=self.header)
             self.assertEqual(response.status_code,503)
