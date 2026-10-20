@@ -29,3 +29,5 @@ jobs:
       - run: pip install -r requirements.txt
       - run: python -m compileall -q main.py app scripts tests
       - run: python -m unittest discover -s tests -v
+      # Entire identity→review→artwork pipeline stays synthetic/offline.
+      - run: python -m scripts.source_pipeline_smoke
