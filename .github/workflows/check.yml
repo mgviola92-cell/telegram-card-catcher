@@ -31,5 +31,7 @@ jobs:
       - run: python -m unittest discover -s tests -v
       # Entire identity→review→artwork pipeline stays synthetic/offline.
       - run: python -m scripts.source_pipeline_smoke
+      # Stream 100k actual normalized synthetic metadata rows offline; no art/Neon.
+      - run: python -m unittest tests.test_bulk_metadata_stage -v
       # 50k image-free ownership fixtures on disposable PostgreSQL; rollback.
       - run: python -m scripts.benchmark_owned_cards --run --rows 50000
