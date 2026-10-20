@@ -42,3 +42,32 @@ def series_text(row):
             f"🎬 <b>{clean(row['series'],95)}</b>\n"
             f"🌸 Unique collected: <b>{count}/{total}</b> ({pct:g}%)\n"
             "<i>Multiple owned generations count once.</i>")
+
+
+def duplicates_text(rows):
+    lines=["🃏 <b>𝗠𝗬 𝗗𝗨𝗣𝗟𝗜𝗖𝗔𝗧𝗘𝗦</b>","━━━━━━━━━━━━━━"]
+    if not rows:
+        lines.append("No characters owned more than once.")
+    for row in rows[:12]:
+        lines.append(
+            f"🌸 <b>{clean(row['name'],70)}</b> · <b>×{int(row['copies'])}</b>\n"
+            f"    🎬 {clean(row['series'],80)}"
+        )
+    lines.append("\n<i>Variants/generations of the same character count as copies.</i>")
+    return "\n".join(lines)
+
+
+def missing_text(result):
+    rows=result["characters"]
+    total=int(result["missing"])
+    lines=["🔎 <b>𝗠𝗜𝗦𝗦𝗜𝗡𝗚 𝗖𝗛𝗔𝗥𝗔𝗖𝗧𝗘𝗥𝗦</b>","━━━━━━━━━━━━━━",
+           f"🎬 <b>{clean(result['series'],95)}</b>",
+           f"🌸 <b>{total} character(s)</b> not collected"]
+    for row in rows[:12]:
+        lines.append(f"• <b>{clean(row['name'],75)}</b>")
+    if total>len(rows):
+        lines.append(f"…and {total-len(rows)} more.")
+    if not total:
+        lines.append("✅ Everything in this enabled series catalog is collected (or no enabled entries exist).")
+    lines.append("\n<i>Catalog progress only; this shows no other players’ owned IDs.</i>")
+    return "\n".join(lines)
