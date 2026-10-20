@@ -33,11 +33,18 @@ COMMANDS_TEXT = (
     "/gift MY_ID — Member ကို Reply ပြီး Gift ပေးရန်\n"
     "/trade MY_ID THEIR_ID — Reply ပြီး Trade တောင်းရန်\n"
     "⏳ Receiver က 10 မိနစ်အတွင်း Accept/Decline လုပ်နိုင်တယ်။\n\n"
+    "🔄 𝗚𝗥𝗢𝗨𝗣 𝗧𝗥𝗔𝗗𝗘 𝗕𝗢𝗔𝗥𝗗\n"
+    "/listcard MY_ID — List owned card for voluntary swaps\n"
+    "/market — Browse group trade listings\n"
+    "/unlist MY_ID — Remove your listing\n"
+    "⏳ Listing lasts 24h; /trade requires both players to accept.\n\n"
     "🏆 𝗟𝗘𝗔𝗗𝗘𝗥𝗕𝗢𝗔𝗥𝗗\n"
     "/top — Global top catchers\n"
     "/gtop — Group top catchers\n"
     "/today — Today's catches (Myanmar time)\n\n"
-    "📊 𝗖𝗢𝗟𝗟𝗘𝗖𝗧𝗜𝗢𝗡 𝗦𝗧𝗔𝗧𝗦\n"
+    "📊 𝗖𝗢𝗟𝗟𝗘𝗖𝗧𝗜𝗢𝗡 𝗦𝗧𝗔𝗧𝗦\n"    "/duplicates — Copies of same character\n"
+    "/missing SERIES — Uncollected characters in series\n"
+
     "/stats — ပိုင်ဆိုင်ထားတဲ့ Card စာရင်းချုပ်\n"
     "/progress — Series အလိုက် Collection Progress\n"
     "/series NAME — Series တစ်ခုရဲ့ Completion စစ်ရန်\n\n"
@@ -46,7 +53,7 @@ COMMANDS_TEXT = (
     "⚙️ 𝗚𝗥𝗢𝗨𝗣 𝗔𝗗𝗠𝗜𝗡\n"
     "/changetime COUNT — Spawn Message Count ပြင်ရန် (10–500)\n\n"
     "📌 Spawn ပုံပေါ်လာရင် Character နာမည်ကို Chat ထဲမှာ ရိုက်ပါ။\n"
-    "🚧 Market နဲ့ Advanced Cards ကို ဆက်တည်ဆောက်နေပါတယ်။"
+    "🚧 Advanced Cards တွေကို ဆက်တည်ဆောက်နေပါတယ်။"
 )
 
 
