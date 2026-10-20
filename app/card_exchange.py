@@ -98,7 +98,9 @@ def finish_offer(kind, offer_id, actor, accept):
     Row locks are ordered by numeric card ID, protecting against two concurrent
     reversed trades. Rollback keeps cards, offer and ledger in sync.
     """
-    if kind not in ("gift","trade") or type(actor) is not int or actor <= 0 or type(accept) is not bool:
+    if (kind not in ("gift","trade") or type(actor) is not int
+        or actor <= 0 or type(accept) is not bool
+        or type(offer_id) is not int or not 1 <= offer_id <= 9223372036854775807):
         return None
     table = "gift_offers" if kind == "gift" else "trade_offers"
     with connect() as db:
