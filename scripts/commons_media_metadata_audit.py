@@ -13,7 +13,7 @@ import os
 from pathlib import Path
 import re
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlencode
+from urllib.parse import urlencode, unquote, urlsplit
 from urllib.request import Request, urlopen
 
 from scripts.artwork_candidate_checklist import checked_https
@@ -32,6 +32,26 @@ def plain(value):
     if not isinstance(value,str):
         return ""
     return " ".join(unescape(re.sub(r"<[^>]*>"," ",value)).split())[:300]
+
+
+def same_canonical_url(first,second):
+    """Compare known HTTPS links without treating equivalent %2C vs ',' as edits.
+
+    Only removes percent-encoding ambiguity; never accepts a different domain,
+    image path, fragment or query as the 'same file'.
+    """
+    if not isinstance(first,str) or not isinstance(second,str):
+        return False
+    try:
+        a,b=urlsplit(first),urlsplit(second)
+        return (a.scheme==b.scheme=="https" and a.hostname==b.hostname
+                and a.username is None and b.username is None
+                and a.password is None and b.password is None
+                and a.port==b.port
+                and unquote(a.path)==unquote(b.path)
+                and a.query==b.query and not a.fragment and not b.fragment)
+    except ValueError:
+        return False
 
 
 def inspect_payload(rows,payload):
@@ -80,8 +100,8 @@ def inspect_payload(rows,payload):
         width=info.get("width")
         height=info.get("height")
         mime=info.get("mime")
-        same_url=info.get("url")==file_url
-        same_page=info.get("descriptionurl")==page_url
+        same_url=same_canonical_url(info.get("url"),file_url)
+        same_page=same_canonical_url(info.get("descriptionurl"),page_url)
         mime_ok=mime in PHOTO_MIME
         size_ok=type(filesize) is int and 0<filesize<=MAX_REMOTE_IMAGE_BYTES
         dims_ok=(type(width) is int and type(height) is int and
