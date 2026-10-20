@@ -5,6 +5,7 @@ import string
 import psycopg
 from psycopg.rows import dict_row
 from app.card_refs import parse_card_ref
+from app.weighted_catalog import select_active_character
 
 ALPHABET = string.ascii_uppercase + string.digits
 RARITIES = ('Common', 'Uncommon', 'Rare', 'Legendary', 'Mystical',
@@ -69,9 +70,9 @@ def try_spawn(chat_id, default_every):
             if count < setting['spawn_every']:
                 cur.execute('UPDATE group_settings SET message_count=%s WHERE chat_id=%s', (count,chat_id))
                 return None
-            # Weighted selection; no image downloads or SQL random sort per row.
-            char = cur.execute("""SELECT * FROM characters WHERE enabled=true AND weight>0
-                ORDER BY -ln(greatest(random(),0.000001))/weight LIMIT 1""").fetchone()
+            # Pick IDs from compact on-demand weighted arrays (no full-table
+            # random sort on every spawn), then verify enabled in PostgreSQL.
+            char = select_active_character(db)
             if char is None:
                 cur.execute('UPDATE group_settings SET message_count=0 WHERE chat_id=%s', (chat_id,))
                 return None
