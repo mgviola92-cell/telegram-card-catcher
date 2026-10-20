@@ -115,6 +115,31 @@ changing a source URL invalidates the *shared* `file_id` but not ownership.
 No test writes to Neon; no test downloads artwork. UI/native captions and
 current live Telegram bot stay exactly as they were.
 
+### Turning large staged metadata into a manageable real-review batch
+
+New `scripts/prepare_review_queue.py` selects at most **5,000** candidate
+identities from up to 200,000 *existing, permitted-to-review* source
+metadata rows. Round-robin sampling gives separate shows opportunities in
+the initial review and avoids burning an entire small batch on a single
+famous title. Deterministic source/character ordering makes the result
+reproducible. All new review records explicitly have
+`status="pending"`, `image_url=null` and five `evidence=null` fields;
+the script never copies provider picture URLs or blesses a discovered image.
+
+```bash
+python -m scripts.prepare_review_queue \
+  /tmp/allowed-metadata.json /tmp/pending-character-review.json \
+  --limit 200 --max-per-series 5
+```
+
+Each record should be independently researched and reviewed before its
+fields are edited. A reviewer changes **only genuinely verified** records
+to `approved`, provides the correct licensed HTTPS art, five supporting
+evidence URLs, and a substantive note. Rejected/unfinished records stay
+excluded when `scripts/build_reviewed_catalog.py` produces a candidate
+release. The pipeline enforces review consistency, not the truth of
+evidence URLs; actual legal review and identity verification remain manual.
+
 ## Source status / remaining work
 
 Earlier official metadata audits (in older separate development PR #2)
