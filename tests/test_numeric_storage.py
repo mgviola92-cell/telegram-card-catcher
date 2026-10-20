@@ -33,7 +33,7 @@ class NumericStorageTests(unittest.TestCase):
         cur.fetchone.side_effect=[
             {'active_character_id':42,'active_variant_id':None,'last_spawn':'now'},
             {'recent':True},
-            {'id':42,'name':'Alice','aliases':[], 'series':'Wonderland'},
+            {'id':42,'name':'Alice','aliases':[], 'series':'Wonderland','rarity':'Common'},
             {'next':1},
             None,       # generated random legacy code is unique
             {'id':6103} # INSERT INTO owned_cards ... RETURNING id
