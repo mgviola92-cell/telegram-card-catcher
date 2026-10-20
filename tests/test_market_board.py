@@ -104,6 +104,11 @@ class MarketPostgresTests(unittest.TestCase):
         try:
             with self.connect() as db:
                 db.execute("DELETE FROM market_listings WHERE card_id=ANY(%s)",(self.card_ids,))
+                db.execute("DELETE FROM gift_offers WHERE card_id=ANY(%s)",(self.card_ids,))
+                db.execute("""DELETE FROM trade_offers
+                    WHERE sender_card_id=ANY(%s) OR receiver_card_id=ANY(%s)""",
+                    (self.card_ids,self.card_ids))
+                db.execute("DELETE FROM card_transfers WHERE card_id=ANY(%s)",(self.card_ids,))
                 db.execute("DELETE FROM owned_cards WHERE id=ANY(%s)",(self.card_ids,))
                 db.execute("DELETE FROM characters WHERE id=%s",(self.charid,))
         finally:
