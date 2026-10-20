@@ -87,7 +87,7 @@ class MarketPostgresTests(unittest.TestCase):
                         'https://upload.wikimedia.org/synthetic-shared.jpg',false)
                 RETURNING id""",(f"test:market:{tag}",)).fetchone()["id"]
             for i in range(7):
-                code=f"MK{tag}{i}"
+                code=f"MK{tag.upper()}{i}"
                 card=db.execute("""INSERT INTO owned_cards
                     (code,character_id,owner_id,generation)
                     VALUES (%s,%s,%s,%s) RETURNING id""",
