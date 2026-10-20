@@ -169,10 +169,52 @@ The full repo GitHub Actions CI runs mocked API regressions that prove:
 - synthetic *human-review fixtures* check exact image/credit/evidence
   manifests and protect the guarded importer (not actual legal approval).
 
-**Actual live Wikimedia imageinfo enrichment and real Telegram send tests
-have NOT yet been performed.** This is the next external-data gate, and it
-should start with a very small, definitely reusable and safe picture
-selection before expanding. Never equate category entries to usable Cards.
+### LIVE provider metadata test — executed against Wikimedia Commons
+
+On 2026-10-20, GitHub Actions [run 39443786284]
+(https://github.com/mgviola92-cell/telegram-card-catcher/actions/runs/39443786284)
+completed SUCCESS with the real public GitHub issue-tracker as the
+provider contact URL. The run made **8 bounded Commons Action API JSON
+requests**, downloaded **zero original image bytes** and wrote
+**zero production database rows**. Unlike mock tests, these counts are
+actual Commons API observations:
+
+| Live step | Observed |
+| --- | ---: |
+| Specific source categories requested | 4 |
+| File titles surviving first filename checks | **89** |
+| Same image listed under two character identities | **7**, excluded from BOTH groups |
+| File titles selected for metadata verification | **42** |
+| JPEG/PNG size/dimension metadata-only candidates | **39** |
+| Pending independent human review worksheets | **39** |
+| Rights-approved artworks or new production cards | **0** |
+| Real Telegram photo sends | **0** |
+
+The first real-world API attempt [run 39443432564]
+(https://github.com/mgviola92-cell/telegram-card-catcher/actions/runs/39443432564)
+revealed a vital categorization conflict: some files occur under
+different mascot-character categories. The code now excludes all
+seven ambiguous titles from ALL character pools, rather than choosing
+one identity arbitrarily. A unit test enforces this.
+
+The successful live Action artifact is named
+`commons-mascot-review-metadata` (seven-day retention) and includes
+category metadata, imageinfo responses and 39 PENDING review worksheets.
+An extra **six-file** human-research shortlist was preserved at
+`data/commons_live_shortlist_20261020.pending.json` using image URLs
+returned by the API, not guessed image hash directories. Commons imageinfo
+returns source URLs with `utm_*` tracking parameters; this six-file
+display-only shortlist removes only those known campaign parameters.
+Original provider URLs remain in the Action artifact.
+
+**39 refers ONLY to format/size/dimension candidates.** It is NOT
+a count of pictures with verified content suitability, art license,
+correct character identity or actual Telegram photo delivery.
+For example `Quote-tan.png` is a hair accessory, not a portrait;
+it must not be promoted just because the parent category matches.
+Independent human rights/visual review and a tiny real Telegram
+photo send pilot are still required before importing any of these.
+
 
 The storage architecture remains unchanged: one shared original artwork
 URL and optional Telegram file_id on `characters` /
