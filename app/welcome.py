@@ -42,7 +42,7 @@ COMMANDS_TEXT = (
     "/top — Global top catchers\n"
     "/gtop — Group top catchers\n"
     "/today — Today's catches (Myanmar time)\n\n"
-    "📊 𝗖𝗢𝗟𝗟𝗘𝗖𝗧𝗜𝗢𝗡 𝗦𝗧𝗔𝗧𝗦\n"    "/duplicates — Copies of same character\n"
+    "📊 𝗖𝗢𝗟𝗟𝗘𝗖𝗧𝗜𝗢𝗡 𝗦𝗧𝗔𝗧𝗦\n"\n    "/duplicates — Copies of same character\n"
     "/missing SERIES — Uncollected characters in series\n"
 
     "/stats — ပိုင်ဆိုင်ထားတဲ့ Card စာရင်းချုပ်\n"
