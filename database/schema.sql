@@ -36,6 +36,13 @@ CREATE TABLE IF NOT EXISTS processed_updates (
   processed_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS processed_updates_age ON processed_updates(processed_at);
+-- Retry-safe webhook inbox state. Existing processed update rows stay 'done':
+-- do not accidentally replay past Telegram actions after the migration.
+ALTER TABLE processed_updates ADD COLUMN IF NOT EXISTS status TEXT NOT NULL
+  DEFAULT 'done' CHECK (status IN ('processing','done','failed'));
+ALTER TABLE processed_updates ADD COLUMN IF NOT EXISTS claimed_at TIMESTAMPTZ;
+ALTER TABLE processed_updates ADD COLUMN IF NOT EXISTS attempt_count INTEGER NOT NULL DEFAULT 0;
+
 
 
 -- Immutable catcher attribution for leaderboards, including after transfers.
