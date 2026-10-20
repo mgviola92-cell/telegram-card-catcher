@@ -118,19 +118,19 @@ class CommonsCategoryDiscoveryTests(unittest.TestCase):
 
     def test_actual_bounded_network_flow_mocked_once_per_category(self):
         request_urls=[]
+        test_case=self
         class Caller:
             def __call__(self,req,timeout):
-                self_seen=None
                 request_urls.append(req.full_url)
-                self.assertEqual(timeout,15)
+                test_case.assertEqual(timeout,15)
                 # The request contains a specific category label. Never fetch
                 # subcategories or paginate into unreviewed material.
                 from urllib.parse import parse_qs,urlsplit
                 params=parse_qs(urlsplit(req.full_url).query)
                 cat=params["cmtitle"][0]
-                self.assertIn(cat,CATS)
-                self.assertEqual(params["cmtype"],["file"])
-                self.assertEqual(params["cmlimit"],["50"])
+                test_case.assertIn(cat,CATS)
+                test_case.assertEqual(params["cmtype"],["file"])
+                test_case.assertEqual(params["cmlimit"],["50"])
                 return FakeReply(category_json(DEMO_FILES[cat]))
         called=discover(CATS,fetch=True,
                         user_agent="CardKout review contact qa@example.org",
@@ -176,10 +176,10 @@ class CommonsImageinfoEnrichmentTests(unittest.TestCase):
             self.assertFalse(row["source_identity_verified"])
             self.assertEqual(row["artist_hint_unverified"],"Creator")
         # Category filename suggestions alone never produce a catalog.
-        staged=[{"source_key":x["claimed_character_source_key"],
-                 "name":x["claimed_character_name"],
-                 "series":x["claimed_series"]}
-                for x in chosen if x["claimed_character_name"]=="Kiki the Cyber Squirrel"]
+        staged=[{"source_key":source,"name":row["claimed_character_name"],
+                 "series":row["claimed_series"]}
+                for source,row in {x["claimed_character_source_key"]:x
+                                   for x in chosen}.items()]
         release=assemble(staged,[])["catalog"]
         self.assertEqual(release,[])
 
