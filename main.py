@@ -378,6 +378,8 @@ def webhook(secret):
         update=types.Update.de_json(data)
     except (TypeError,ValueError):
         abort(400)
+    if update is None:
+        abort(400)
     state,attempt=claim_update(update_id)
     if state == 'done':
         return 'OK',200
@@ -393,7 +395,12 @@ def webhook(secret):
         except Exception:
             logging.exception('Cannot release webhook update %s (lease will expire)',update_id)
         return 'RETRY',503,{'Retry-After':'2'}
-    if not mark_completed(update_id,attempt):
+    try:
+        completed=mark_completed(update_id,attempt)
+    except Exception:
+        logging.exception('Cannot commit webhook completion %s',update_id)
+        completed=False
+    if not completed:
         # Lost a processing lease or transient DB error: no false 200 ACK.
         return 'RETRY',503,{'Retry-After':'2'}
     return 'OK',200
