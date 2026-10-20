@@ -1,0 +1,50 @@
+[
+  {
+    "source_key": "review:alice-tenniel-1865",
+    "name": "Alice",
+    "series": "Alice's Adventures in Wonderland",
+    "aliases": [
+      "Alice in Wonderland"
+    ],
+    "category": "other",
+    "rarity": "Common",
+    "weight": 100,
+    "review_status": "pending_recheck_public_domain_reference"
+  },
+  {
+    "source_key": "review:tin-woodman-denslow-1900",
+    "name": "Tin Woodman",
+    "series": "The Wonderful Wizard of Oz",
+    "aliases": [
+      "Tin Man"
+    ],
+    "category": "other",
+    "rarity": "Common",
+    "weight": 100,
+    "review_status": "pending_independent_artwork_review"
+  },
+  {
+    "source_key": "review:scarecrow-denslow-1900",
+    "name": "Scarecrow",
+    "series": "The Wonderful Wizard of Oz",
+    "aliases": [
+      "Scarecrow (Oz)"
+    ],
+    "category": "other",
+    "rarity": "Common",
+    "weight": 100,
+    "review_status": "pending_independent_artwork_review"
+  },
+  {
+    "source_key": "review:dorothy-and-toto-denslow-1900",
+    "name": "Dorothy Gale",
+    "series": "The Wonderful Wizard of Oz",
+    "aliases": [
+      "Dorothy"
+    ],
+    "category": "other",
+    "rarity": "Common",
+    "weight": 100,
+    "review_status": "pending_independent_artwork_review"
+  }
+]
