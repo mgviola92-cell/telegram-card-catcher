@@ -98,7 +98,7 @@ def select_active_character(db, picker=active_picker):
         if selected_id is None:
             return None
         row=db.execute("""SELECT * FROM characters WHERE id=%s
-            AND enabled=true AND weight>0""",(selected_id,)).fetchone()
+            AND enabled=true AND weight>0 FOR SHARE""",(selected_id,)).fetchone()
         if row is not None:
             return row
         picker.invalidate()
