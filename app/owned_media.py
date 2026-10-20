@@ -38,7 +38,9 @@ def send_owned_card(bot, storage, chat_id, card, **kwargs):
             return None
         if source==url and getattr(result,'photo',None):
             try:
-                storage.cache_image(card['character_id'],result.photo[-1].file_id)
+                storage.cache_image(card['character_id'],result.photo[-1].file_id,
+                                    variant_id=card.get('variant_id'),
+                                    expected_url=url)
             except Exception:
                 logging.exception('Photo delivered but shared file ID cache update failed')
         return result

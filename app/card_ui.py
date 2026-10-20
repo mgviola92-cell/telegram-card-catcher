@@ -106,6 +106,8 @@ def owned_caption(character):
         f"🎬 <b>SERIES:</b> {clean(character.get('series'), MAX_SERIES)}\n"
         f"🆔 <b>ID:</b> <code>{clean(public_card_id(character), 32)}</code>"
         f"  ·  <b>GEN:</b> {int(character['generation'])}\n"
+        + (f"🎨 <b>ARTWORK:</b> {clean(character.get('variant_label'),45)}\n"
+           if character.get('variant_label') else "")
         + ("⭐ <b>FAVOURITE</b>" if character.get("favorite") else "✦ <i>Collected</i>")
     )
 

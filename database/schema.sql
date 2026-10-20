@@ -36,3 +36,85 @@ CREATE TABLE IF NOT EXISTS processed_updates (
   processed_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS processed_updates_age ON processed_updates(processed_at);
+
+
+-- Immutable catcher attribution for leaderboards, including after transfers.
+-- Existing legacy cards have NULL attribution; their original catcher can be
+-- recovered from the oldest transfer ledger entry if such a record exists.
+ALTER TABLE owned_cards ADD COLUMN IF NOT EXISTS catcher_id BIGINT;
+ALTER TABLE owned_cards ADD COLUMN IF NOT EXISTS caught_chat_id BIGINT;
+CREATE INDEX IF NOT EXISTS owned_cards_group_catches
+  ON owned_cards(caught_chat_id, obtained_at DESC)
+  WHERE caught_chat_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS owned_cards_catcher_id
+  ON owned_cards(catcher_id) WHERE catcher_id IS NOT NULL;
+
+-- All collectible copies remain in owned_cards. No image bytes, file IDs or
+-- artwork URLs are duplicated per owner for gifts, swaps or rankings.
+CREATE TABLE IF NOT EXISTS card_transfers (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  card_id BIGINT NOT NULL REFERENCES owned_cards(id),
+  from_user_id BIGINT NOT NULL,
+  to_user_id BIGINT NOT NULL,
+  reason TEXT NOT NULL CHECK(reason IN ('gift','trade')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS card_transfers_card_order
+  ON card_transfers(card_id,id);
+
+CREATE TABLE IF NOT EXISTS gift_offers (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  sender_id BIGINT NOT NULL,
+  receiver_id BIGINT NOT NULL,
+  card_id BIGINT NOT NULL REFERENCES owned_cards(id),
+  status TEXT NOT NULL DEFAULT 'pending'
+    CHECK(status IN ('pending','accepted','declined','expired','invalid')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CHECK(sender_id <> receiver_id)
+);
+CREATE INDEX IF NOT EXISTS gift_pending_sender
+  ON gift_offers(sender_id,created_at DESC) WHERE status='pending';
+
+CREATE TABLE IF NOT EXISTS trade_offers (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  sender_id BIGINT NOT NULL,
+  receiver_id BIGINT NOT NULL,
+  sender_card_id BIGINT NOT NULL REFERENCES owned_cards(id),
+  receiver_card_id BIGINT NOT NULL REFERENCES owned_cards(id),
+  status TEXT NOT NULL DEFAULT 'pending'
+    CHECK(status IN ('pending','accepted','declined','expired','invalid')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CHECK(sender_id <> receiver_id),
+  CHECK(sender_card_id <> receiver_card_id)
+);
+CREATE INDEX IF NOT EXISTS trade_pending_sender
+  ON trade_offers(sender_id,created_at DESC) WHERE status='pending';
+
+
+-- Multiple approved original illustrations for ONE character; all owners of
+-- the same artwork share one URL/file_id. NEVER store artwork on owned_cards.
+CREATE TABLE IF NOT EXISTS character_variants (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  character_id BIGINT NOT NULL REFERENCES characters(id),
+  variant_key TEXT NOT NULL,
+  label TEXT NOT NULL,
+  image_url TEXT NOT NULL,
+  telegram_file_id TEXT,
+  rarity TEXT NOT NULL DEFAULT 'Common',
+  spawn_weight INTEGER NOT NULL DEFAULT 100
+    CHECK(spawn_weight BETWEEN 0 AND 10000),
+  enabled BOOLEAN NOT NULL DEFAULT FALSE,
+  UNIQUE(character_id,variant_key)
+);
+ALTER TABLE owned_cards ADD COLUMN IF NOT EXISTS variant_id
+  BIGINT REFERENCES character_variants(id);
+ALTER TABLE group_settings ADD COLUMN IF NOT EXISTS active_variant_id
+  BIGINT REFERENCES character_variants(id);
+CREATE INDEX IF NOT EXISTS character_variants_by_character
+  ON character_variants(character_id,enabled);
+-- Index on owned_cards.variant_id is postponed until real EXPLAIN / telemetry;
+-- main ownership queries filter by owner and use its existing owner index.
+
+-- Fast exact-title collection progress without scanning the full catalog.
+CREATE INDEX IF NOT EXISTS characters_by_series_enabled
+  ON characters(series,id) WHERE enabled=true;

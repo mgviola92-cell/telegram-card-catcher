@@ -31,9 +31,9 @@ class NumericStorageTests(unittest.TestCase):
     def test_new_catch_returns_existing_numeric_identity_not_random_code(self):
         db,cur=self.connect()
         cur.fetchone.side_effect=[
-            {'active_character_id':42,'last_spawn':'now'},
+            {'active_character_id':42,'active_variant_id':None,'last_spawn':'now'},
             {'recent':True},
-            {'id':42,'name':'Alice','aliases':[], 'series':'Wonderland'},
+            {'id':42,'name':'Alice','aliases':[], 'series':'Wonderland','rarity':'Common'},
             {'next':1},
             None,       # generated random legacy code is unique
             {'id':6103} # INSERT INTO owned_cards ... RETURNING id
