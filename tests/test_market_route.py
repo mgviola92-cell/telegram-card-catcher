@@ -75,7 +75,7 @@ class GroupBoardCommandTests(unittest.TestCase):
              patch.object(self.main.bot,"reply_to") as replied:
             self.main.completion_details_command(msg)
         find.assert_called_once_with(msg.from_user.id)
-        self.assertIn("DUPLICATES",replied.call_args.args[1].upper().replace("𝗠𝗬 ",""))
+        self.assertIn("No characters owned more than once",replied.call_args.args[1])
 
         msg=message("/missing Example Saga")
         result={"series":"Example Saga","missing":1,
