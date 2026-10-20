@@ -11,10 +11,13 @@ from scripts.import_characters import (
 from scripts.artwork_approval import require_artwork_approval
 
 
-def item(key="fixture:hero-1", image="https://upload.wikimedia.org/example.jpg"):
-    return {"source_key":key,"name":"Example Hero","series":"Original Show",
-            "category":"other","rarity":"Common","aliases":["Hero"],
-            "image_url":image,"weight":100}
+def item(key="fixture:hero-1", image="https://upload.wikimedia.org/example.jpg",
+         **overrides):
+    row={"source_key":key,"name":"Example Hero","series":"Original Show",
+         "category":"other","rarity":"Common","aliases":["Hero"],
+         "image_url":image,"weight":100}
+    row.update(overrides)
+    return row
 
 
 def approval(row):
