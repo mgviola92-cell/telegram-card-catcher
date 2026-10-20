@@ -65,6 +65,7 @@ class MaintenancePostgresTests(unittest.TestCase):
         source="test:maintenance:"+suffix
         code="MAINT"+suffix
         cardid=None
+        secondary_id=None
         character_id=None
         try:
             with psycopg.connect(self.url,row_factory=dict_row) as conn:
@@ -76,6 +77,10 @@ class MaintenancePostgresTests(unittest.TestCase):
                     (code,character_id,owner_id,generation)
                     VALUES (%s,%s,4001,1) RETURNING id""",
                     (code,character_id)).fetchone()["id"]
+                secondary_id=conn.execute("""INSERT INTO owned_cards
+                    (code,character_id,owner_id,generation)
+                    VALUES (%s,%s,4002,2) RETURNING id""",
+                    (code+"B",character_id)).fetchone()["id"]
                 conn.execute("""INSERT INTO card_transfers
                     (card_id,from_user_id,to_user_id,reason)
                     VALUES (%s,3999,4001,'gift')""",(cardid,))
@@ -90,7 +95,7 @@ class MaintenancePostgresTests(unittest.TestCase):
                     (sender_id,receiver_id,sender_card_id,receiver_card_id,created_at)
                     VALUES (4001,4002,%s,%s,now()-interval '160 days'),
                            (4001,4002,%s,%s,now())""",
-                           (cardid,cardid,cardid,cardid))
+                           (cardid,secondary_id,cardid,secondary_id))
             with psycopg.connect(self.url,row_factory=dict_row) as conn:
                 before=maintenance.audit(conn)
                 self.assertGreaterEqual(
@@ -128,6 +133,8 @@ class MaintenancePostgresTests(unittest.TestCase):
                     conn.execute("DELETE FROM gift_offers WHERE card_id=%s",(cardid,))
                     conn.execute("DELETE FROM card_transfers WHERE card_id=%s",(cardid,))
                     conn.execute("DELETE FROM owned_cards WHERE id=%s",(cardid,))
+                    if secondary_id is not None:
+                        conn.execute("DELETE FROM owned_cards WHERE id=%s",(secondary_id,))
                 if character_id is not None:
                     conn.execute("DELETE FROM characters WHERE id=%s",(character_id,))
 
