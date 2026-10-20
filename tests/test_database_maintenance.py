@@ -27,7 +27,9 @@ def disposable_url():
 class MaintenanceValidationTests(unittest.TestCase):
     def test_refuse_too_aggressive_prune(self):
         for options in (dict(keep_updates=3),dict(keep_offers=10),
-                        dict(keep_updates=True),dict(keep_updates=3651)):
+                        dict(keep_updates=True),dict(keep_updates=3651),
+                        dict(keep_market=0),dict(keep_market=True),
+                        dict(keep_market=3651)):
             with self.subTest(options=options),self.assertRaises(ValueError):
                 maintenance._ages(**options)
         for batch in (0,-1,2001,True,1.5):
@@ -62,6 +64,7 @@ class MaintenancePostgresTests(unittest.TestCase):
         suffix=uuid.uuid4().hex[:20]
         old_update=70000000000000+int(uuid.uuid4().int % 1000000000)
         fresh_update=old_update+1
+        stuck_update=old_update+2
         source="test:maintenance:"+suffix
         code="MAINT"+suffix
         cardid=None
@@ -87,6 +90,11 @@ class MaintenancePostgresTests(unittest.TestCase):
                 conn.execute("""INSERT INTO processed_updates(update_id,processed_at)
                    VALUES (%s,now()-interval '45 days'),(%s,now())""",
                    (old_update,fresh_update))
+                conn.execute("""INSERT INTO processed_updates(
+                    update_id,processed_at,claimed_at,status,attempt_count)
+                    VALUES (%s,now()-interval '50 days',
+                               now()-interval '50 days','processing',1)""",
+                    (stuck_update,))
                 conn.execute("""INSERT INTO gift_offers
                     (sender_id,receiver_id,card_id,created_at)
                     VALUES (4001,4002,%s,now()-interval '160 days'),
@@ -96,6 +104,11 @@ class MaintenancePostgresTests(unittest.TestCase):
                     VALUES (4001,4002,%s,%s,now()-interval '160 days'),
                            (4001,4002,%s,%s,now())""",
                            (cardid,secondary_id,cardid,secondary_id))
+                conn.execute("""INSERT INTO market_listings(
+                    card_id,seller_id,chat_id,expires_at)
+                    VALUES (%s,4001,-1005544,now()-interval '21 days'),
+                           (%s,4002,-1005544,now()+interval '1 day')""",
+                    (cardid,secondary_id))
             with psycopg.connect(self.url,row_factory=dict_row) as conn:
                 before=maintenance.audit(conn)
                 self.assertGreaterEqual(
@@ -108,6 +121,7 @@ class MaintenancePostgresTests(unittest.TestCase):
                 self.assertGreaterEqual(cleanup["deleted_ephemeral"]["gift_offers"],1)
                 self.assertGreaterEqual(cleanup["deleted_ephemeral"]["trade_offers"],1)
                 self.assertEqual(cleanup["history_ledger_deleted"],0)
+                self.assertGreaterEqual(cleanup["deleted_ephemeral"]["market_listings"],1)
             with psycopg.connect(self.url,row_factory=dict_row) as conn:
                 self.assertIsNone(conn.execute(
                     "SELECT 1 FROM processed_updates WHERE update_id=%s",
@@ -115,6 +129,15 @@ class MaintenancePostgresTests(unittest.TestCase):
                 self.assertIsNotNone(conn.execute(
                     "SELECT 1 FROM processed_updates WHERE update_id=%s",
                     (fresh_update,)).fetchone())
+                self.assertIsNotNone(conn.execute(
+                    "SELECT 1 FROM processed_updates WHERE update_id=%s",
+                    (stuck_update,)).fetchone())
+                self.assertIsNone(conn.execute(
+                    "SELECT 1 FROM market_listings WHERE card_id=%s",
+                    (cardid,)).fetchone())
+                self.assertIsNotNone(conn.execute(
+                    "SELECT 1 FROM market_listings WHERE card_id=%s",
+                    (secondary_id,)).fetchone())
                 self.assertEqual(conn.execute("""SELECT count(*) AS n FROM gift_offers
                     WHERE card_id=%s""",(cardid,)).fetchone()["n"],1)
                 self.assertEqual(conn.execute("""SELECT count(*) AS n FROM trade_offers
@@ -125,8 +148,11 @@ class MaintenancePostgresTests(unittest.TestCase):
                     "SELECT 1 FROM card_transfers WHERE card_id=%s",(cardid,)).fetchone())
         finally:
             with psycopg.connect(self.url) as conn:
-                conn.execute("DELETE FROM processed_updates WHERE update_id IN (%s,%s)",
-                             (old_update,fresh_update))
+                conn.execute("DELETE FROM processed_updates WHERE update_id IN (%s,%s,%s)",
+                             (old_update,fresh_update,stuck_update))
+                if cardid is not None:
+                    conn.execute("DELETE FROM market_listings WHERE card_id IN (%s,%s)",
+                                 (cardid,secondary_id))
                 if cardid is not None:
                     conn.execute("DELETE FROM trade_offers WHERE sender_card_id=%s",
                                  (cardid,))
