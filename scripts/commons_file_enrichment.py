@@ -10,12 +10,12 @@ This script intentionally DOES NOT recurse categories, auto-apply rights,
 or guess Commons image path hashes from filenames.
 """
 import argparse
-from collections import Counter, defaultdict
+from collections import defaultdict
 import json
 import os
 from pathlib import Path
 import re
-from urllib.parse import urlencode
+from urllib.parse import urlencode, quote
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 
@@ -23,7 +23,7 @@ from scripts.commons_category_discovery import (
     CATEGORY_IDENTITIES, MAX_JSON_BYTES, API,
 )
 from scripts.commons_media_metadata_audit import (
-    inspect_payload, plain, same_canonical_url,
+    plain, same_canonical_url,
 )
 from scripts.artwork_candidate_checklist import checked_https
 
@@ -119,8 +119,8 @@ def parse_imageinfo(selected, payload):
                checked_https(raw_page,"commons.wikimedia.org") and
                isinstance(raw_page,str) and
                same_canonical_url(raw_page,
-                   "https://commons.wikimedia.org/wiki/"+__import__("urllib.parse",fromlist=["quote"]).quote(
-                       title.replace(" ","_"),safe="():")))
+                   "https://commons.wikimedia.org/wiki/"+
+                   quote(title.replace(" ","_"),safe="():")))
         photo_ok=(valid and mime in ("image/png","image/jpeg")
                   and type(size) is int and 0<size<=5_000_000
                   and type(width) is int and type(height) is int
