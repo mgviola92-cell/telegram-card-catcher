@@ -70,11 +70,16 @@ class CardSocialDatabaseTests(unittest.TestCase):
     def tearDown(self):
         try:
             with self.conn() as db:
-                db.execute("DELETE FROM gift_offers WHERE card_id=ANY(%s)",(self.cards,))
-                db.execute("""DELETE FROM trade_offers
-                   WHERE sender_card_id=ANY(%s) OR receiver_card_id=ANY(%s)""",
-                   (self.cards,self.cards))
-                db.execute("DELETE FROM card_transfers WHERE card_id=ANY(%s)",(self.cards,))
+                db.execute("""DELETE FROM gift_offers WHERE card_id IN
+                    (SELECT id FROM owned_cards WHERE character_id=ANY(%s))""",
+                    (self.char_ids,))
+                db.execute("""DELETE FROM trade_offers WHERE
+                    sender_card_id IN (SELECT id FROM owned_cards WHERE character_id=ANY(%s))
+                    OR receiver_card_id IN (SELECT id FROM owned_cards WHERE character_id=ANY(%s))""",
+                   (self.char_ids,self.char_ids))
+                db.execute("""DELETE FROM card_transfers WHERE card_id IN
+                    (SELECT id FROM owned_cards WHERE character_id=ANY(%s))""",
+                    (self.char_ids,))
                 db.execute("DELETE FROM group_settings WHERE chat_id=%s",(self.chat,))
                 db.execute("DELETE FROM owned_cards WHERE character_id=ANY(%s)",(self.char_ids,))
                 db.execute("DELETE FROM character_variants WHERE character_id=ANY(%s)",(self.char_ids,))
