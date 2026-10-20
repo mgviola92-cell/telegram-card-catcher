@@ -89,3 +89,28 @@ CREATE TABLE IF NOT EXISTS trade_offers (
 );
 CREATE INDEX IF NOT EXISTS trade_pending_sender
   ON trade_offers(sender_id,created_at DESC) WHERE status='pending';
+
+
+-- Multiple approved original illustrations for ONE character; all owners of
+-- the same artwork share one URL/file_id. NEVER store artwork on owned_cards.
+CREATE TABLE IF NOT EXISTS character_variants (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  character_id BIGINT NOT NULL REFERENCES characters(id),
+  variant_key TEXT NOT NULL,
+  label TEXT NOT NULL,
+  image_url TEXT NOT NULL,
+  telegram_file_id TEXT,
+  rarity TEXT NOT NULL DEFAULT 'Common',
+  spawn_weight INTEGER NOT NULL DEFAULT 100
+    CHECK(spawn_weight BETWEEN 0 AND 10000),
+  enabled BOOLEAN NOT NULL DEFAULT FALSE,
+  UNIQUE(character_id,variant_key)
+);
+ALTER TABLE owned_cards ADD COLUMN IF NOT EXISTS variant_id
+  BIGINT REFERENCES character_variants(id);
+ALTER TABLE group_settings ADD COLUMN IF NOT EXISTS active_variant_id
+  BIGINT REFERENCES character_variants(id);
+CREATE INDEX IF NOT EXISTS character_variants_by_character
+  ON character_variants(character_id,enabled);
+-- Index on owned_cards.variant_id is postponed until real EXPLAIN / telemetry;
+-- main ownership queries filter by owner and use its existing owner index.
