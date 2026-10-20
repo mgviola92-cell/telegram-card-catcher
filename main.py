@@ -10,6 +10,7 @@ from app import welcome
 from app.owned_media import send_owned_card
 from app import card_ui
 from app import card_exchange, catch_rankings, card_social_ui
+from app import collection_stats, collection_stats_ui
 from app.card_refs import public_card_id
 
 logging.basicConfig(level=logging.INFO)
@@ -281,6 +282,25 @@ def top_command(msg):
         kind='global'
     bot.reply_to(msg,card_social_ui.leaderboard_caption(entries,kind),
                  parse_mode='HTML',disable_web_page_preview=True)
+
+
+@bot.message_handler(commands=['stats','progress','series'])
+def collection_stats_command(msg):
+    cmd=msg.text.split()[0].split('@')[0].lower()
+    if cmd=='/stats':
+        response=collection_stats_ui.overview_text(
+            collection_stats.overview(msg.from_user.id))
+    elif cmd=='/progress':
+        response=collection_stats_ui.progress_text(
+            collection_stats.recent_series_progress(msg.from_user.id))
+    else:
+        args=msg.text.split(maxsplit=1)
+        if len(args)!=2 or not 1<=len(args[1].strip())<=150:
+            bot.reply_to(msg,'Usage: /series EXACT SERIES NAME')
+            return
+        row=collection_stats.series_progress(msg.from_user.id,args[1].strip())
+        response=collection_stats_ui.series_text(row)
+    bot.reply_to(msg,response,parse_mode='HTML')
 
 
 @bot.message_handler(commands=['changetime'])
