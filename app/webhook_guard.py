@@ -80,12 +80,3 @@ def mark_failed(update_id, attempt):
             (update_id,attempt),
         ).fetchone()
         return changed is not None
-
-
-def begin_update(update_id):
-    """Backward-compatible helper for older callers (NOT for the webhook).
-
-    New webhooks must use claim_update + mark_completed/mark_failed instead.
-    """
-    status,attempt=claim_update(update_id)
-    return status=="claimed"
