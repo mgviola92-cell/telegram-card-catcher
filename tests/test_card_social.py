@@ -132,7 +132,7 @@ class CardExchangeUnitTests(unittest.TestCase):
         result=card_social_ui.leaderboard_caption(
             [{"user_id":10002,"catches":7},{"user_id":10003,"catches":3}],
             "group")
-        self.assertIn("GROUP",result)
+        self.assertIn("𝗚𝗥𝗢𝗨𝗣",result)
         self.assertIn("tg://user?id=10002",result)
         self.assertIn("<b>7</b>",result)
         self.assertIn("Older catches",result)
