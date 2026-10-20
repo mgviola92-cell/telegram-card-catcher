@@ -12,6 +12,7 @@ from app.owned_media import send_owned_card
 from app import card_ui
 from app import card_exchange, catch_rankings, card_social_ui
 from app import collection_stats, collection_stats_ui
+from app import market_board, market_board_ui
 from app.card_refs import public_card_id
 
 logging.basicConfig(level=logging.INFO)
@@ -302,6 +303,56 @@ def collection_stats_command(msg):
         row=collection_stats.series_progress(msg.from_user.id,args[1].strip())
         response=collection_stats_ui.series_text(row)
     bot.reply_to(msg,response,parse_mode='HTML')
+
+
+@bot.message_handler(commands=['duplicates','missing'])
+def completion_details_command(msg):
+    cmd=msg.text.split()[0].split('@')[0].lower()
+    if cmd=='/duplicates':
+        if len(msg.text.split())!=1:
+            bot.reply_to(msg,'Usage: /duplicates')
+            return
+        rows=collection_stats.duplicate_characters(msg.from_user.id)
+        text=collection_stats_ui.duplicates_text(rows)
+    else:
+        args=msg.text.split(maxsplit=1)
+        if len(args)!=2 or not 1<=len(args[1].strip())<=150:
+            bot.reply_to(msg,'Usage: /missing EXACT SERIES NAME')
+            return
+        rows=collection_stats.missing_characters(msg.from_user.id,args[1].strip())
+        text=collection_stats_ui.missing_text(rows)
+    bot.reply_to(msg,text,parse_mode='HTML')
+
+
+@bot.message_handler(commands=['market','listcard','unlist'])
+def market_command(msg):
+    cmd=msg.text.split()[0].split('@')[0].lower()
+    if msg.chat.type not in ('group','supergroup'):
+        bot.reply_to(msg,'Use the trade board inside a group.')
+        return
+    args=msg.text.split()
+    if cmd=='/market':
+        if len(args)!=1:
+            bot.reply_to(msg,'Usage: /market')
+            return
+        entries=market_board.group_market(msg.chat.id)
+        caption=market_board_ui.market_caption(entries)
+    elif cmd=='/listcard':
+        if len(args)!=2:
+            bot.reply_to(msg,'Usage: /listcard MY_CARD_ID')
+            return
+        offer=market_board.list_card(msg.from_user.id,msg.chat.id,args[1])
+        caption=(market_board_ui.listed_caption(offer['card_id'])
+                 if offer else 'Could not list: check ownership or 5-card listing limit.')
+    else:
+        if len(args)!=2:
+            bot.reply_to(msg,'Usage: /unlist MY_CARD_ID')
+            return
+        ok=market_board.unlist_card(msg.from_user.id,args[1])
+        caption=('✅ Your trade listing was removed.'
+                 if ok else 'Listing not found or you are not its owner.')
+    bot.reply_to(msg,caption,parse_mode='HTML',
+                 disable_web_page_preview=True)
 
 
 @bot.message_handler(commands=['changetime'])
