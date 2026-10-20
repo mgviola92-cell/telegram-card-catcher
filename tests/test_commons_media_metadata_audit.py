@@ -5,7 +5,7 @@ from pathlib import Path
 from urllib.error import HTTPError
 from unittest.mock import Mock
 
-from scripts.commons_media_metadata_audit import inspect, inspect_payload
+from scripts.commons_media_metadata_audit import inspect, inspect_payload, same_canonical_url
 
 
 CANDIDATES=json.loads(Path("data/commons_literary_pilot_candidates.review.json").read_text(encoding="utf8"))
@@ -77,6 +77,20 @@ class CommonsMediaAuditTests(unittest.TestCase):
         result=inspect(CANDIDATES,opener=lambda *a,**k:self.fail("Network forbidden"))
         self.assertEqual(result["mode"],"offline")
         self.assertTrue(result["requires_live_api_inspection"])
+
+    def test_equivalent_wikimedia_percent_encoding_does_not_fail(self):
+        self.assertTrue(same_canonical_url(
+            "https://upload.wikimedia.org/file%2C_name.jpg",
+            "https://upload.wikimedia.org/file,_name.jpg"))
+        self.assertTrue(same_canonical_url(
+            "https://commons.wikimedia.org/wiki/File:Dorothy_and_Toto%2C_1900.png",
+            "https://commons.wikimedia.org/wiki/File:Dorothy_and_Toto,_1900.png"))
+        for wrong in ("https://evil.example/file,_name.jpg",
+                      "https://upload.wikimedia.org/another.jpg",
+                      "https://upload.wikimedia.org/file,_name.jpg?token=x",
+                      "http://upload.wikimedia.org/file,_name.jpg"):
+            self.assertFalse(same_canonical_url(
+                "https://upload.wikimedia.org/file,_name.jpg",wrong))
 
     def test_image_url_mismatch_never_counts_valid(self):
         one=CANDIDATES[0]
