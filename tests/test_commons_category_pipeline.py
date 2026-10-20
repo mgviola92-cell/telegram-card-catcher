@@ -228,17 +228,24 @@ class CommonsImageinfoEnrichmentTests(unittest.TestCase):
         self.assertEqual(output["image_bytes_downloaded"],0)
         self.assertEqual(output["database_writes"],0)
 
-    def test_clashing_category_identity_is_rejected(self):
+    def test_clashing_category_identity_is_dropped_from_both_character_pools(self):
         example=report()
+        duplicate=example["review_titles"][0]
         example["review_titles"].append({
-            **example["review_titles"][0],
+            **duplicate,
             "category":CATS[1],
             "claimed_character_source_key":CATEGORY_IDENTITIES[CATS[1]][0],
             "claimed_character_name":CATEGORY_IDENTITIES[CATS[1]][1],
             "claimed_series":CATEGORY_IDENTITIES[CATS[1]][2],
         })
-        with self.assertRaises(ValueError):
-            select_titles(example)
+        selected=select_titles(example)
+        self.assertTrue(selected)
+        # Never attribute a shared photo to either character by ordering.
+        self.assertNotIn(duplicate["commons_file_title"],
+                         {x["commons_file_title"] for x in selected})
+        output=enrich(example,fetch=False)
+        self.assertEqual(output["ambiguous_cross_character_file_titles_excluded"],1)
+        self.assertEqual(output["artworks_approved"],0)
 
 
 if __name__=="__main__":
