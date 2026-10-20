@@ -12,7 +12,7 @@ import psycopg
 from psycopg.conninfo import conninfo_to_dict
 from psycopg.rows import dict_row
 
-from app import card_exchange, catch_rankings, storage
+from app import card_exchange, catch_rankings, storage, collection_stats
 
 
 def safe_test_url():
@@ -226,6 +226,27 @@ class CardSocialDatabaseTests(unittest.TestCase):
                 WHERE table_schema='public' AND table_name='owned_cards'""")}
         self.assertNotIn("image_url",columns)
         self.assertNotIn("telegram_file_id",columns)
+
+    def test_stats_count_duplicate_generations_as_one_unique_character(self):
+        with self.conn() as db:
+            db.execute("""INSERT INTO owned_cards
+                (code,character_id,owner_id,generation,favorite)
+                VALUES ('STATS-DUP-2',%s,%s,2,true)""",
+                (self.char_ids[0],self.owners[0]))
+        stats=collection_stats.overview(self.owners[0])
+        self.assertEqual(stats["owned"],2)
+        self.assertEqual(stats["unique_characters"],1)
+        self.assertEqual(stats["favourites"],2)
+        self.assertEqual(stats["variants"],0)
+        self.assertGreaterEqual(stats["catalog_available"],2)
+        row=collection_stats.series_progress(self.owners[0],"Test Series")
+        self.assertEqual((row["collected"],row["available"]),(1,2))
+        progress=collection_stats.recent_series_progress(self.owners[0])
+        self.assertEqual(len(progress),1)
+        self.assertEqual((progress[0]["collected"],progress[0]["available"]),(1,2))
+        # Another collector does not share this user's series completion.
+        other=collection_stats.series_progress(self.owners[1],"Test Series")
+        self.assertEqual((other["collected"],other["available"]),(1,2))
 
     def test_pending_disabled_variant_does_not_spawn(self):
         with self.conn() as db:
