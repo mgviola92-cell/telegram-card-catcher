@@ -8,6 +8,7 @@ from html import escape
 import re
 from telebot import types
 from app.card_refs import public_card_id
+from app.artwork_credit import credit_line
 
 PAGE_SIZE = 8
 MAX_NAME = 85
@@ -79,7 +80,7 @@ def spawn_caption(character):
         f"💎 <b>RARITY:</b> {rarity_label(character.get('rarity'))}\n\n"
         "🔎 <b>GUESS THE NAME</b>\n"
         "💬 <i>First correct answer wins this card.</i>\n"
-        "⏳ <i>15 minutes to catch</i>"
+        "⏳ <i>15 minutes to catch</i>" + credit_line(character)
     )
 
 
@@ -109,6 +110,7 @@ def owned_caption(character):
         + (f"🎨 <b>ARTWORK:</b> {clean(character.get('variant_label'),45)}\n"
            if character.get('variant_label') else "")
         + ("⭐ <b>FAVOURITE</b>" if character.get("favorite") else "✦ <i>Collected</i>")
+        + credit_line(character,reveal_source=True)
     )
 
 
