@@ -31,7 +31,7 @@ class OwnedCardMediaTests(unittest.TestCase):
         row=dict(CARD,telegram_file_id=None)
         self.assertIsNotNone(send_owned_card(bot,storage,5,row))
         bot.send_photo.assert_called_once_with(5,CARD['image_url'])
-        storage.cache_image.assert_called_once_with(123,'saved-by-telegram')
+        storage.cache_image.assert_called_once_with(123,'saved-by-telegram',variant_id=None,expected_url=CARD['image_url'])
 
     def test_invalid_cached_id_retries_original_url(self):
         bot,storage=Mock(),Mock()
@@ -41,7 +41,7 @@ class OwnedCardMediaTests(unittest.TestCase):
         self.assertIsNotNone(send_owned_card(bot,storage,5,CARD))
         self.assertEqual(bot.send_photo.call_count,2)
         self.assertEqual(bot.send_photo.call_args.args[1],CARD['image_url'])
-        storage.cache_image.assert_called_once_with(123,'cache-new')
+        storage.cache_image.assert_called_once_with(123,'cache-new',variant_id=None,expected_url=CARD['image_url'])
 
     def test_rate_limit_forbidden_and_unrelated_bad_request_are_not_retried(self):
         for ex in [error(429,'Too Many Requests'),error(403,'Forbidden'),
