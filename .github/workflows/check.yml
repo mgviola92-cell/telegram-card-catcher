@@ -31,3 +31,5 @@ jobs:
       - run: python -m unittest discover -s tests -v
       # Entire identity→review→artwork pipeline stays synthetic/offline.
       - run: python -m scripts.source_pipeline_smoke
+      # 50k image-free ownership fixtures on disposable PostgreSQL; rollback.
+      - run: python -m scripts.benchmark_owned_cards --run --rows 50000
