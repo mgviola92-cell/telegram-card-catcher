@@ -120,6 +120,45 @@ tests verify the named streaming cursor works and disabled selections are
 reloaded correctly. These tests are not proof of a licensed 100k-character
 artwork catalog or of throughput under multiple large Telegram groups.
 
+## Webhook reliability: durable claim, success ACK, and retry
+
+Previously the webhook wrote `processed_updates(update_id)` **BEFORE**
+calling `bot.process_new_updates`, then returned 200. If a handler raised
+or the Render worker crashed, the same Telegram update was blocked forever,
+so a catch or button event could be silently lost. The integrated dev branch
+now uses a lightweight PostgreSQL inbox state machine:
+
+- `status=processing` when an update is atomically claimed;
+- `status=done` only after the synchronous handler returns successfully;
+- `status=failed` if handler processing raises, so a repeat delivery can
+  be claimed again;
+- a three-minute lease for abandoned processing rows after a worker crash,
+  and a monotonically increasing attempt counter used as an update fencing
+  token;
+- completed repeats return HTTP 200 without rerunning the handler;
+  already-processing repeats return HTTP 503 (Retry-After: 2) **instead**
+  of falsely acknowledging work still in flight;
+- wrong webhook secret, invalid JSON, bad update IDs and Telegram parse
+  failures are rejected before claiming;
+- a broken update-completion DB write also returns HTTP 503 rather than
+  giving Telegram a false 200;
+- legacy rows created by the previous webhook are assigned status=done
+  on additive migration so old updates do not replay unexpectedly.
+
+`tests/test_webhook_guard.py` checks fail/retry/done semantics,
+lease-crash reclamation, legacy completed updates, and stale fencing-token
+prevention on an actual disposable localhost PostgreSQL. New Flask route
+tests cover authenticated success, malformed messages, duplicates, busy
+requests, handler exceptions, failure release and completion failures
+without Telegram API calls or bot tokens from Render.
+
+**Important limitation:** this is **at-least-once delivery**, not a
+transactional outbox. If Telegram's send succeeds but a worker crashes
+before recording `done`, retry can repeat the outgoing message. Existing
+claim and gift/trade storage operations have transaction-level guards,
+but true exactly-once photo/message output needs a separate durable
+outbox/operation-ID design. Do not claim complete crash-proof reliability.
+
 ## Before a real release
 
 1. Confirm the green GitHub Actions result on the exact unified branch head.
