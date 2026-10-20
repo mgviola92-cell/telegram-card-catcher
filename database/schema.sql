@@ -114,3 +114,7 @@ CREATE INDEX IF NOT EXISTS character_variants_by_character
   ON character_variants(character_id,enabled);
 -- Index on owned_cards.variant_id is postponed until real EXPLAIN / telemetry;
 -- main ownership queries filter by owner and use its existing owner index.
+
+-- Fast exact-title collection progress without scanning the full catalog.
+CREATE INDEX IF NOT EXISTS characters_by_series_enabled
+  ON characters(series,id) WHERE enabled=true;
