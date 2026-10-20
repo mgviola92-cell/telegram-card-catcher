@@ -58,10 +58,13 @@ jobs:
           assert all(x['status']=='pending' and not x['approved_for_import']
                      and x['image_url'] is None for x in queue)
           print('Research-only selected titles:',report['selected_file_titles'])
+          print('Cross-character shared files excluded:',
+                report['ambiguous_cross_character_file_titles_excluded'])
           print('Metadata format-eligible candidates:',report['metadata_photo_candidates'])
           print('Pending worksheets:',len(queue),'APPROVED: 0')
           PY
       - name: Preserve only JSON metadata audit artifacts
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: commons-mascot-review-metadata
@@ -70,4 +73,4 @@ jobs:
             /tmp/commons-categories.json
             /tmp/commons-imageinfo.json
             /tmp/pending-artwork-variants.json
-          if-no-files-found: error
+          if-no-files-found: warn
