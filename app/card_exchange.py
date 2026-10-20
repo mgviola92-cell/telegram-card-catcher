@@ -147,6 +147,9 @@ def finish_offer(kind, offer_id, actor, accept):
                    VALUES (%s,%s,%s,'trade'),(%s,%s,%s,'trade')""",
                 (card_ids[0],offer["sender_id"],offer["receiver_id"],
                  card_ids[1],offer["receiver_id"],offer["sender_id"]))
+        # A transferred card must leave all advertised trading boards in the
+        # SAME transaction. It cannot remain listed by its previous owner.
+        db.execute("DELETE FROM market_listings WHERE card_id=ANY(%s)",(card_ids,))
         db.execute(f"UPDATE {table} SET status='accepted' WHERE id=%s",(offer_id,))
         return {"status":"accepted", "card_ids":card_ids,
                 "sender_id":offer["sender_id"],
