@@ -13,6 +13,7 @@ from urllib.parse import urlsplit
 
 from app.storage import connect, RARITIES
 from scripts.artwork_approval import require_artwork_approval
+from scripts.artwork_attribution import credit_tuple
 
 CATEGORIES={'anime','manga','manhwa','webtoon','game','original_ai','other'}
 KEY_PATTERN=re.compile(r'^[a-zA-Z0-9_.:-]{3,120}$')
@@ -73,16 +74,23 @@ def validate(items):
         if type(weight) is not int or not 1<=weight<=10_000:
             raise ValueError(f'Item {index} weight must be 1..10000')
         ready.append((key,item['name'].strip(),item['series'].strip(),
-                      [v.strip() for v in aliases],category,rarity,url,weight))
+                      [v.strip() for v in aliases],category,rarity,url,weight,
+                      *credit_tuple(item)))
     return ready
 
 
-QUERY="""INSERT INTO characters(source_key,name,series,aliases,category,rarity,image_url,weight)
-VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
+QUERY="""INSERT INTO characters(source_key,name,series,aliases,category,rarity,
+                image_url,weight,artwork_author,artwork_license_name,
+                artwork_license_url,artwork_page_url)
+VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
 ON CONFLICT (source_key) WHERE source_key IS NOT NULL DO UPDATE
 SET name=EXCLUDED.name, series=EXCLUDED.series, aliases=EXCLUDED.aliases,
     category=EXCLUDED.category, rarity=EXCLUDED.rarity,
     image_url=EXCLUDED.image_url, weight=EXCLUDED.weight,
+    artwork_author=EXCLUDED.artwork_author,
+    artwork_license_name=EXCLUDED.artwork_license_name,
+    artwork_license_url=EXCLUDED.artwork_license_url,
+    artwork_page_url=EXCLUDED.artwork_page_url,
     telegram_file_id=CASE
        WHEN characters.image_url IS DISTINCT FROM EXCLUDED.image_url
        THEN NULL ELSE characters.telegram_file_id END"""
