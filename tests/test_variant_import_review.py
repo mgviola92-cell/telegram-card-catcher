@@ -102,7 +102,7 @@ class VariantImporterTests(unittest.TestCase):
         self.assertIn("IS DISTINCT FROM EXCLUDED.image_url",sql)
         self.assertIn("enabled=true",sql)
         self.assertEqual(args,(47,"alt-one","Alternate fan-art (licensed)",
-                               row()["image_url"],"Rare",60))
+                               row()["image_url"],"Rare",60,None,None,None,None))
 
     def test_unknown_character_aborts_transaction(self):
         db=MagicMock()
