@@ -75,7 +75,9 @@ class CardSocialDatabaseTests(unittest.TestCase):
                    WHERE sender_card_id=ANY(%s) OR receiver_card_id=ANY(%s)""",
                    (self.cards,self.cards))
                 db.execute("DELETE FROM card_transfers WHERE card_id=ANY(%s)",(self.cards,))
-                db.execute("DELETE FROM owned_cards WHERE id=ANY(%s)",(self.cards,))
+                db.execute("DELETE FROM group_settings WHERE chat_id=%s",(self.chat,))
+                db.execute("DELETE FROM owned_cards WHERE character_id=ANY(%s)",(self.char_ids,))
+                db.execute("DELETE FROM character_variants WHERE character_id=ANY(%s)",(self.char_ids,))
                 db.execute("DELETE FROM characters WHERE id=ANY(%s)",(self.char_ids,))
         finally:
             for p in reversed(self.patches):p.stop()
@@ -170,6 +172,71 @@ class CardSocialDatabaseTests(unittest.TestCase):
                    WHERE table_schema='public' AND table_name='owned_cards'""")}
         for prohibited in ("image_url","image_bytes","telegram_file_id","photo_blob"):
             self.assertNotIn(prohibited,fields)
+
+
+    def test_variant_art_stays_shared_after_spawn_catch_and_transfer(self):
+        import secrets
+        with self.conn() as db:
+            variant_id=db.execute("""INSERT INTO character_variants
+                (character_id,variant_key,label,image_url,rarity,
+                 enabled,spawn_weight)
+                VALUES (%s,'approved-test','Alternate Artwork',
+                    'https://upload.wikimedia.org/verified-fictional-art.jpg',
+                    'Rare',true,100) RETURNING id""",(self.char_ids[0],)).fetchone()["id"]
+            db.execute("UPDATE characters SET enabled=false WHERE id=%s",(self.char_ids[1],))
+        with patch("app.storage.secrets.randbelow",return_value=0):
+            spawned=storage.try_spawn(self.chat,1)
+        self.assertIsNotNone(spawned)
+        self.assertEqual(spawned["variant_id"],variant_id)
+        self.assertEqual(spawned["rarity"],"Rare")
+        caught=storage.claim(self.chat,self.owners[0],"Fixture Character")
+        self.assertEqual(caught["variant_id"],variant_id)
+        self.assertEqual(caught["variant_label"],"Alternate Artwork")
+        self.assertEqual(caught["rarity"],"Rare")
+        numeric_id=caught["card_id"]
+        detail=storage.get_card(str(numeric_id))
+        self.assertEqual(detail["variant_id"],variant_id)
+        self.assertEqual(detail["rarity"],"Rare")
+        self.assertEqual(detail["image_url"],spawned["image_url"])
+        # Cache belongs to character_variants, not the owned row. URL races
+        # must not overwrite fresh media with a stale Telegram file ID.
+        self.assertFalse(storage.cache_image(
+            self.char_ids[0],"stale",variant_id=variant_id,
+            expected_url="https://upload.wikimedia.org/old.jpg"))
+        self.assertTrue(storage.cache_image(
+            self.char_ids[0],"shared-fileid",variant_id=variant_id,
+            expected_url=spawned["image_url"]))
+        self.assertEqual(storage.get_card(str(numeric_id))["telegram_file_id"],
+                         "shared-fileid")
+        offer=card_exchange.create_gift(self.owners[0],self.owners[1],numeric_id)
+        self.assertEqual(card_exchange.finish_offer(
+            "gift",offer["offer_id"],self.owners[1],True)["status"],"accepted")
+        moved=storage.get_card(str(numeric_id))
+        self.assertEqual(moved["owner_id"],self.owners[1])
+        self.assertEqual(moved["variant_id"],variant_id)
+        self.assertEqual(moved["telegram_file_id"],"shared-fileid")
+        with self.conn() as db:
+            columns={row["column_name"] for row in db.execute("""
+                SELECT column_name FROM information_schema.columns
+                WHERE table_schema='public' AND table_name='owned_cards'""")}
+        self.assertNotIn("image_url",columns)
+        self.assertNotIn("telegram_file_id",columns)
+
+    def test_pending_disabled_variant_does_not_spawn(self):
+        with self.conn() as db:
+            db.execute("""INSERT INTO character_variants(
+                character_id,variant_key,label,image_url,enabled)
+                VALUES (%s,'pending','Not Reviewed',
+                     'https://upload.wikimedia.org/pending.jpg',false)""",
+                (self.char_ids[0],))
+            db.execute("UPDATE characters SET enabled=false WHERE id=%s",(self.char_ids[1],))
+        with patch("app.storage.secrets.randbelow",return_value=0):
+            appearance=storage.try_spawn(self.chat,1)
+        self.assertIsNotNone(appearance)
+        self.assertIsNone(appearance["variant_id"])
+        self.assertEqual(appearance["image_url"],
+                         "https://upload.wikimedia.org/no-download.jpg")
+
 
 
 if __name__=="__main__":
