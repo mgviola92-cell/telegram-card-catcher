@@ -33,6 +33,35 @@ Copyright metadata, derivative restrictions, attribution, the identity
 of the illustrator and suitability MUST be checked per individual file
 even when Commons lists a file in an anime-style character category.
 
+## Three more individually researched, illustrated single-character files
+
+Beyond the Wikipe-tan two-artwork pilot, the following **real Wikimedia
+Commons file descriptions** have now been researched separately, and
+recorded as evidence-only rows in
+`data/commons_three_new_character_file_leads.review.json`:
+
+| Single-character source | Exact Commons file-page lead | Author/edits as claimed on page | Source-page license claims | Photo URL/rights status |
+| --- | --- | --- | --- | --- |
+| Commons-tan | [Commons-tan.png](https://commons.wikimedia.org/wiki/File:Commons-tan.png) | Kasuga; cropped from Wiki-sisters art | CC BY-SA alternatives and GFDL | Raw direct PNG URL NOT confirmed; review pending |
+| Wikiquote-tan | [Wikiquote-tan child-single.png](https://commons.wikimedia.org/wiki/File:Wikiquote-tan_child-single.png) | Kasuga; with Zscout370 logo removal | CC BY-SA 3.0 and other options | Raw direct PNG URL NOT confirmed; review pending |
+| Kiki | [Kiki version 5.0 splash (cropped).png](https://commons.wikimedia.org/wiki/File:Kiki_the_Cyber_Squirrel_mascot_of_Krita_version_5.0_splash_(cropped).png) | Tyson Tan | CC BY-SA 4.0 / GPL v3 | Raw direct PNG URL NOT confirmed; review pending |
+
+**Important visual identity correction:** `File:Quote-tan.png`, although
+listed under Wikiquote-tan, is described on its file page as a
+**quotation-mark hair accessory**, not a portrait of the full
+character. It is NOT appropriate as a full Wikiquote-tan Card image.
+The researched `Wikiquote-tan child-single.png` is a more meaningful
+*candidate* but remains unapproved. Source page text/credit hints are
+not proof of current image permission, suitability or Telegram
+reachability. Shared image URL hashes were intentionally **not invented**:
+the category/individual-file API must return the actual direct URL.
+
+Combined with the previous Wikipe-tan base+head pictures, this is now
+**five specific original-art file-page candidates across four source
+character identities**, with still **zero** new production imports.
+Distinct appearance/variant counts are not extra unique character IDs.
+The legal/media verification pipeline is still needed before real cards.
+
 ## Implemented source→artwork pipeline, offline by default
 
 The pipeline now has FOUR separate, independent checkpoints:
