@@ -200,6 +200,48 @@ the 148,604 ACDB character IDs have reusable artwork. Popular copyrighted
 franchise art and AI-generated fan art still require source-specific rights
 checks.
 
+## New collector tools and consent-only group trade board
+
+- **`/duplicates`:** group owned copies by exact character identity and
+  count generations/alternate art as duplicates, showing up to 10 names.
+  Never expose per-user image URLs or list other collectors' private cards.
+- **`/missing EXACT SERIES NAME`:** list up to 12 enabled-catalog character
+  identities this specific player has not yet caught. This can reveal
+  characters but not other players' owned-card IDs, and only runs on demand.
+- **`/listcard OWNED_ID`:** opt-in to an expiring **24-hour virtual swap
+  advertisement** in the current group; 5 active cards per seller maximum,
+  enforced by a per-seller PostgreSQL transaction lock and current ownership
+  check. Updating one's own listing is permitted without bypassing quota.
+- **`/market`:** browse up to 8 active offers only in the same group, showing
+  numeric owned-card ID, character and owner mention. Expired listings and
+  cards that changed owners are automatically hidden from browsing and
+  excluded from quota.
+- **`/unlist OWNED_ID`:** current owner and original advertiser only can
+  withdraw a listing. Only the owner can list a card; nobody can list a
+  different user's card. Existing legacy codes resolve to the same numeric
+  owned-card ID.
+- A listing never transfers or charges for a card. Two players must still
+  negotiate via reply-to-member `/trade MY_ID THEIR_ID`, where the receiver
+  explicitly accepts and ownership is verified under row locks. Successful
+  `/gift` and `/trade` settlement deletes any listing for transferred
+  cards **in the same database transaction**. No real-money marketplace,
+  cryptocurrency, currency ledger, purchases or gambling are implemented.
+- `market_listings` stores only `card_id`, `seller_id`, `chat_id`, listing
+  and expiry timestamps (NO pictures, URL copies, file IDs or art credits).
+  Indexes support by-group lookups and per-seller quota counts.
+- Manual database maintenance also supports old expired listing cleanup
+  after at least **7 days past expiry**; default **14 days**, bounded to
+  2,000 rows/table per invocation. It never deletes cards, transfers or
+  still-processing webhook inbox records. No scheduled background job.
+
+Real disposable PostgreSQL tests cover ownership, legacy/numeric ID refs,
+duplicate listing refresh, 5-card quota, group isolation, stale/expired
+invisibility, seller revocation, atomic gift/trade delisting, copy-aware
+collection queries and cleanup with preserved active listings. The native
+Telegram HTML formatting is tested, but actual two-member Telegram group
+acceptance remains a separate release requirement. These features are on
+the **unmerged** integrated development PR, not on the deployed Alice pilot.
+
 ## Before a real release
 
 1. Confirm the green GitHub Actions result on the exact unified branch head.
