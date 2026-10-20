@@ -42,7 +42,8 @@ class CardSocialDatabaseTests(unittest.TestCase):
     def setUp(self):
         self.patches=[patch("app.card_exchange.connect",self.conn),
                       patch("app.catch_rankings.connect",self.conn),
-                      patch("app.storage.connect",self.conn)]
+                      patch("app.storage.connect",self.conn),
+                      patch("app.collection_stats.connect",self.conn)]
         for p in self.patches:p.start()
         suffix=uuid.uuid4().hex
         self.cards=[]
