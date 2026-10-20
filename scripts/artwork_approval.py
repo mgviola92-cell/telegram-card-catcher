@@ -5,6 +5,7 @@ Rights, source terms, accurate illustration/character mapping, audience
 suitability and required attribution must have been verified by a human.
 """
 from urllib.parse import urlsplit
+from scripts.artwork_attribution import reviewed_credit
 
 
 def require_artwork_approval(items, manifest):
@@ -32,11 +33,12 @@ def require_artwork_approval(items, manifest):
             raise ValueError("Malformed image approval URL") from exc
         if not isinstance(evidence,str) or len(evidence.strip())<12:
             raise ValueError("Artwork approval needs verifiable human permission reference")
-        approvals[key]=url
+        approvals[key]=row
     for row in items:
         if not isinstance(row,dict):
             raise ValueError("Invalid catalog record")
         key=row.get("source_key")
-        if key not in approvals or approvals[key]!=row.get("image_url"):
+        if key not in approvals or approvals[key]["image_url"]!=row.get("image_url"):
             raise ValueError(f"Missing/exchanged artwork permission for {key}")
+        reviewed_credit(row,approvals[key])
     return len(items)
