@@ -64,6 +64,28 @@ The last two commands are dry runs; they require real human evidence-reviewed
 JSON inputs and are not launch instructions. Do not set --apply without
 explicit owner approval and validating target database.
 
+## Actual controlled storage measurement (GitHub Actions)
+
+Run 39410238385 on 2026-10-20 executed a 50,000-card
+image-free synthetic owned-card benchmark against disposable localhost
+PostgreSQL 16. It reported 6,299,648 bytes heap growth,
+11,116,544 bytes ownership index growth and 17,416,192 bytes total
+growth. The observed total is approximately 348.32 bytes **per synthetic
+owned-card row including current indexes**, versus the earlier unsupported
+512 bytes/row planning placeholder. The benchmark transaction was rolled
+back, with 0 production rows written. Test and synthetic ownership
+distribution, indexes, page alignment, free space and fill factors differ
+from actual Neon workload; **never multiply this number to promise a Neon
+plan can fit 1 million cards**. All character metadata, artwork URLs,
+transfer logs, user offers, WAL and database overhead are additional.
+
+The most actionable observation is that indexes are more than half the
+observed delta. Before millions of cards, use EXPLAIN (ANALYZE, BUFFERS) on
+the disposable DB and review redundant indexes against actually used
+query patterns. Do NOT drop existing unique or lookup indexes on production
+without measuring. A smaller row estimate is not equivalent to a safe
+database quota forecast.
+
 ## Before a real release
 
 1. Confirm the green GitHub Actions result on the exact unified branch head.
