@@ -1,0 +1,73 @@
+name: Commons metadata-only pilot (no card import)
+
+on:
+  workflow_dispatch:
+  # Initial creation runs this single bounded research pilot on this development
+  # branch. Later ordinary source edits do NOT repeatedly poll Wikimedia.
+  push:
+    branches:
+      - feature/integrated-catalog-core-20261020
+    paths:
+      - .github/workflows/commons_metadata_pilot.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: commons-meta-review-pilot
+  cancel-in-progress: false
+
+jobs:
+  source-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      # Genuine public project issue tracker is the contact URL for providers.
+      # No private API token, no user address, no Neon credentials.
+      WIKIMEDIA_USER_AGENT: "CardKoutCommonsMetadataReview/0.1 (https://github.com/mgviola92-cell/telegram-card-catcher/issues)"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Curated category title-only discovery (4 requests max)
+        run: |
+          python -m scripts.commons_category_discovery /tmp/commons-categories.json \
+            --category 'Category:Wikipe-tan' \
+            --category 'Category:Commons-tan' \
+            --category 'Category:Wikiquote-tan' \
+            --category 'Category:Kiki the Cyber Squirrel' --fetch
+      - name: Exact Commons imageinfo metadata only (4 requests max)
+        run: |
+          python -m scripts.commons_file_enrichment \
+            /tmp/commons-categories.json /tmp/commons-imageinfo.json \
+            --limit 48 --fetch
+      - name: Generate pending review worksheet (0 approved)
+        run: |
+          python -m scripts.prepare_variant_review_queue \
+            /tmp/commons-imageinfo.json /tmp/pending-artwork-variants.json
+          python - <<'PY'
+          import json
+          with open('/tmp/commons-imageinfo.json',encoding='utf8') as f:
+              report=json.load(f)
+          with open('/tmp/pending-artwork-variants.json',encoding='utf8') as f:
+              queue=json.load(f)
+          assert report['artworks_approved']==0
+          assert report['image_bytes_downloaded']==0
+          assert report['database_writes']==0
+          assert all(x['status']=='pending' and not x['approved_for_import']
+                     and x['image_url'] is None for x in queue)
+          print('Research-only selected titles:',report['selected_file_titles'])
+          print('Metadata format-eligible candidates:',report['metadata_photo_candidates'])
+          print('Pending worksheets:',len(queue),'APPROVED: 0')
+          PY
+      - name: Preserve only JSON metadata audit artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: commons-mascot-review-metadata
+          retention-days: 7
+          path: |
+            /tmp/commons-categories.json
+            /tmp/commons-imageinfo.json
+            /tmp/pending-artwork-variants.json
+          if-no-files-found: error
