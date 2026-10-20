@@ -43,7 +43,8 @@ def select_titles(report, limit=48, max_per_character=12):
         raise ValueError("Expected a bounded explicit Commons discovery report")
     buckets=defaultdict(list)
     candidates=report["review_titles"]
-    seen={}
+    sources_by_title=defaultdict(set)
+    valid_rows=[]
     for row in candidates:
         if (not isinstance(row,dict) or row.get("status")!="pending_human_review"
             or row.get("approved_for_import") is not False
@@ -59,13 +60,20 @@ def select_titles(report, limit=48, max_per_character=12):
             row.get("claimed_character_name")!=name or
             row.get("claimed_series")!=series):
             raise ValueError("Unsafe category-to-character mapping")
-        if title in seen and seen[title]!=source:
-            # Ambiguous file in different character categories cannot be
-            # assigned to either one without a real visual identity check.
-            raise ValueError("Commons file appears under different character identities")
-        if title in seen:
+        # Commons category membership is many-to-many. The same file can
+        # depict several mascots; cross-category hits must be removed FROM
+        # BOTH character pools, not assigned to the first category seen.
+        sources_by_title[title].add(source)
+        valid_rows.append(row)
+    ambiguous={title for title,sources in sources_by_title.items()
+               if len(sources)>1}
+    seen=set()
+    for row in valid_rows:
+        title=row["commons_file_title"]
+        source=row["claimed_character_source_key"]
+        if title in ambiguous or (source,title) in seen:
             continue
-        seen[title]=source
+        seen.add((source,title))
         buckets[source].append(row)
     for group in buckets.values():
         group.sort(key=lambda r:r["commons_file_title"].casefold())
@@ -176,12 +184,19 @@ def _get_page(titles, agent, opener):
 
 def enrich(report,*,fetch=False,user_agent="",limit=48,opener=urlopen):
     selected=select_titles(report,limit=limit)
+    identities_by_title=defaultdict(set)
+    for item in report["review_titles"]:
+        if isinstance(item,dict):
+            identities_by_title[item.get("commons_file_title")].add(
+                item.get("claimed_character_source_key"))
+    collisions=sum(len(sources)>1 for sources in identities_by_title.values())
     if fetch and (not isinstance(user_agent,str) or len(user_agent.strip())<20
                   or ("@" not in user_agent and "https://" not in user_agent)):
         raise ValueError("Need real contact User-Agent for Commons")
     if not fetch:
         return {"mode":"offline","selected_file_titles":len(selected),
                 "api_requests":0,"review_rows":selected,
+                "ambiguous_cross_character_file_titles_excluded":collisions,
                 "artworks_approved":0,"image_bytes_downloaded":0,
                 "database_writes":0}
     enriched=[]
@@ -192,6 +207,7 @@ def enrich(report,*,fetch=False,user_agent="",limit=48,opener=urlopen):
     return {"mode":"bounded_live_imageinfo_metadata",
             "selected_file_titles":len(selected),
             "api_requests":(len(selected)+BATCH-1)//BATCH,
+            "ambiguous_cross_character_file_titles_excluded":collisions,
             "metadata_photo_candidates":sum(r["metadata_photo_candidate"] for r in enriched),
             "review_rows":enriched,
             "artworks_approved":0,"import_ready_characters":0,
