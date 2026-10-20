@@ -148,5 +148,51 @@ class WeightedCatalogUnitTests(unittest.TestCase):
                 WeightedCatalogPicker(ttl=value)
 
 
+class WeightedCatalogPostgresTests(unittest.TestCase):
+    """Real named-cursor + stale cache exercise on disposable local PostgreSQL."""
+    def test_live_local_postgres_rechecks_disabled_character(self):
+        import uuid
+        import psycopg
+        from psycopg.rows import dict_row
+        from scripts.benchmark_owned_cards import test_url
+
+        try:
+            url=test_url()
+        except ValueError:
+            raise unittest.SkipTest("No disposable localhost DB provided")
+
+        uid=uuid.uuid4().hex[:14]
+        ids=[]
+        with psycopg.connect(url,row_factory=dict_row) as db:
+            try:
+                for idx,active in enumerate((True,False)):
+                    rec=db.execute("""INSERT INTO characters
+                        (source_key,name,series,image_url,weight,enabled)
+                        VALUES (%s,'Picker Fixture','Local Test Catalog',
+                                'https://example.org/fixture-art.jpg',100,%s)
+                        RETURNING id""",
+                        (f"test:picker:{uid}:{idx}",active)).fetchone()
+                    ids.append(rec["id"])
+                # Ignore any unrelated fixture IDs after the full test suite,
+                # by explicitly building the cache from the active fixture
+                # only in the isolated CI database.
+                picker=WeightedCatalogPicker()
+                with patch("app.weighted_catalog.secrets.randbelow",return_value=0):
+                    first=select_active_character(db,picker)
+                self.assertIsNotNone(first)
+                self.assertEqual(first["id"],ids[0])
+                db.execute("UPDATE characters SET enabled=false WHERE id=%s",(ids[0],))
+                db.execute("UPDATE characters SET enabled=true WHERE id=%s",(ids[1],))
+                with patch("app.weighted_catalog.secrets.randbelow",return_value=0):
+                    second=select_active_character(db,picker)
+                self.assertEqual(second["id"],ids[1])
+                self.assertEqual(picker.count,1)
+                self.assertEqual(picker.stored_bytes,16)
+            finally:
+                if ids:
+                    db.execute("DELETE FROM characters WHERE id=ANY(%s)",(ids,))
+
+
+
 if __name__=="__main__":
     unittest.main()
