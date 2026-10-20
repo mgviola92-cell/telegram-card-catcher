@@ -86,6 +86,40 @@ query patterns. Do NOT drop existing unique or lookup indexes on production
 without measuring. A smaller row estimate is not equivalent to a safe
 database quota forecast.
 
+## Scalable spawn selection — actual bot optimization
+
+Previous spawn SQL selected **one random character by sorting every enabled
+character row** for every spawn. That becomes wasteful with a large catalog.
+The development bot now uses `app/weighted_catalog.py`:
+
+- For each bot worker process, a **compact cached** list of numeric
+  character IDs and cumulative spawn weights is created **only on an actual
+  spawn attempt**. All DB reads run in the already-open spawn transaction.
+- The list is built with a PostgreSQL server-side streaming cursor, using two
+  packed uint64 arrays. **100,000 weighted character IDs use 1,600,000
+  bytes of array payload**, instead of a giant list of full artwork rows.
+  Real process overhead and driver buffering are extra.
+- `secrets.randbelow(total_weight)` + binary search provides the same
+  relative weight distribution as weighted random sampling in a single
+  selection, without sorting the full table at every spawn.
+- Cache rechecks every **5 minutes of activity-driven use**; if the catalog
+  is empty it retries after 30 seconds. NO background polling, timers,
+  constant database connections or artificial spawn messages are introduced.
+- The chosen ID is rechecked against current `enabled=true` and positive
+  weight, with a row share-lock inside the short transaction. If the ID
+  became disabled, the snapshot is invalidated and retried (max twice).
+  Source changes and newly enabled characters can take up to 5 minutes to
+  appear in an otherwise still-valid worker snapshot.
+- Both base and alternate-artwork shared URL/file-ID delivery remains
+  unchanged. This optimization does not fetch or render images.
+
+Dedicated tests generate **100,000 metadata-only IDs** (synthetic),
+verify 1.6MB array storage, randomness boundaries, cache expiry, empty
+catalog behavior and stale-character prevention; real disposable PostgreSQL
+tests verify the named streaming cursor works and disabled selections are
+reloaded correctly. These tests are not proof of a licensed 100k-character
+artwork catalog or of throughput under multiple large Telegram groups.
+
 ## Before a real release
 
 1. Confirm the green GitHub Actions result on the exact unified branch head.
