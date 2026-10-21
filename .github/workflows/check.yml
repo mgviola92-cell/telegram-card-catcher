@@ -31,6 +31,8 @@ jobs:
       - run: python -m unittest discover -s tests -v
       # Entire identity→review→artwork pipeline stays synthetic/offline.
       - run: python -m scripts.source_pipeline_smoke
+      # 50k source-schema snapshot characters through bounded JSON streaming.
+      - run: python -m unittest tests.test_anime_offline_stream -v
       # Stream 100k actual normalized synthetic metadata rows offline; no art/Neon.
       - run: python -m unittest tests.test_bulk_metadata_stage -v
       # 10k exact-source-ID artwork leads are pending, never auto-approved.
