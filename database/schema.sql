@@ -35,7 +35,13 @@ CREATE TABLE IF NOT EXISTS owned_cards (
 ALTER TABLE owned_cards ALTER COLUMN code DROP NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS owned_cards_generation_unique ON owned_cards(character_id, generation);
 CREATE INDEX IF NOT EXISTS owned_cards_by_owner ON owned_cards (owner_id, obtained_at DESC, id DESC);
-CREATE INDEX IF NOT EXISTS owned_cards_by_character ON owned_cards (character_id, generation);
+-- The UNIQUE (character_id,generation) index above is ALREADY a B-tree
+-- supporting character_id lookups. The legacy non-unique index had identical
+-- keys and doubles that index's storage/write amplification on every catch.
+-- Drop ONLY the duplicate INDEX, never cards, IDs or their transfer history.
+-- This release-migration operation still requires explicit owner permission:
+-- deploying the draft would run DDL on Neon at startup.
+DROP INDEX IF EXISTS owned_cards_by_character;
 CREATE TABLE IF NOT EXISTS processed_updates (
   update_id BIGINT PRIMARY KEY,
   processed_at TIMESTAMPTZ NOT NULL DEFAULT now()
