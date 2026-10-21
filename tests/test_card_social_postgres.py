@@ -197,9 +197,14 @@ class CardSocialDatabaseTests(unittest.TestCase):
         self.assertEqual(spawned["rarity"],"Rare")
         caught=storage.claim(self.chat,self.owners[0],"Fixture Character")
         self.assertEqual(caught["variant_id"],variant_id)
+        self.assertIsNone(caught["code"])  # Only the numeric PK is generated.
         self.assertEqual(caught["variant_label"],"Alternate Artwork")
         self.assertEqual(caught["rarity"],"Rare")
         numeric_id=caught["card_id"]
+        with self.conn() as db:
+            self.assertIsNone(db.execute(
+                "SELECT code FROM owned_cards WHERE id=%s",(numeric_id,)
+            ).fetchone()["code"])
         detail=storage.get_card(str(numeric_id))
         self.assertEqual(detail["variant_id"],variant_id)
         self.assertEqual(detail["rarity"],"Rare")

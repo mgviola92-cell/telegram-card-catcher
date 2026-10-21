@@ -1,13 +1,11 @@
 """PostgreSQL persistence; no character images stored on Render disk."""
 import os
 import secrets
-import string
 import psycopg
 from psycopg.rows import dict_row
 from app.card_refs import parse_card_ref
 from app.weighted_catalog import select_active_character
 
-ALPHABET = string.ascii_uppercase + string.digits
 RARITIES = ('Common', 'Uncommon', 'Rare', 'Legendary', 'Mystical',
             'Divine', 'CrossVerse', 'Cataphract', 'Supreme', 'CNFT')
 
@@ -154,23 +152,20 @@ def claim(chat_id, user_id, guessed):
             cur.execute('SELECT pg_advisory_xact_lock(%s)', (char['id'],))
             generation = cur.execute("""SELECT COALESCE(max(generation),0)+1 AS next FROM owned_cards
                 WHERE character_id=%s""", (char['id'],)).fetchone()['next']
-            for _ in range(12):
-                code = ''.join(secrets.choice(ALPHABET) for _ in range(10))
-                if not cur.execute('SELECT 1 FROM owned_cards WHERE code=%s', (code,)).fetchone():
-                    break
-            else:
-                raise RuntimeError('Unable to allocate card code')
+            # owned_cards.id is the only new public identifier. Preserve
+            # existing legacy codes on old copies but stop allocating a second
+            # random text identifier (and extra lookup) for every new catch.
             variant_id=setting['active_variant_id']
             variant=(cur.execute("""SELECT label,rarity FROM character_variants
                 WHERE id=%s AND character_id=%s""",
                 (variant_id,char['id'])).fetchone() if variant_id else None)
             created = cur.execute("""INSERT INTO owned_cards
-                (code,character_id,owner_id,generation,catcher_id,caught_chat_id,variant_id)
-                VALUES (%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
-                (code,char['id'],user_id,generation,user_id,chat_id,
+                (character_id,owner_id,generation,catcher_id,caught_chat_id,variant_id)
+                VALUES (%s,%s,%s,%s,%s,%s) RETURNING id""",
+                (char['id'],user_id,generation,user_id,chat_id,
                  variant_id)).fetchone()
             cur.execute('UPDATE group_settings SET active_character_id=NULL,active_variant_id=NULL WHERE chat_id=%s', (chat_id,))
-            return dict(char,code=code,card_id=created['id'],
+            return dict(char,code=None,card_id=created['id'],
                         generation=generation,variant_id=variant_id,
                         variant_label=variant['label'] if variant else None,
                         rarity=variant['rarity'] if variant else char['rarity'])

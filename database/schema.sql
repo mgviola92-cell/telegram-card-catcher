@@ -28,6 +28,11 @@ CREATE TABLE IF NOT EXISTS owned_cards (
   obtained_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   favorite BOOLEAN NOT NULL DEFAULT FALSE
 );
+-- The visible card reference is owned_cards.id. Existing legacy text codes
+-- stay searchable, but newly caught cards use NULL to avoid duplicating
+-- random per-copy identifiers. Non-NULL codes remain protected by the
+-- existing UNIQUE constraint; this is an additive metadata-only migration.
+ALTER TABLE owned_cards ALTER COLUMN code DROP NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS owned_cards_generation_unique ON owned_cards(character_id, generation);
 CREATE INDEX IF NOT EXISTS owned_cards_by_owner ON owned_cards (owner_id, obtained_at DESC, id DESC);
 CREATE INDEX IF NOT EXISTS owned_cards_by_character ON owned_cards (character_id, generation);

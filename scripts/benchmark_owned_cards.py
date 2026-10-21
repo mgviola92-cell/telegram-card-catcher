@@ -38,7 +38,7 @@ def ownership_table_sizes(db):
     return {key:int(row[key]) for key in ("heap","indexes","total")}
 
 
-def measure(rows, *, connection_factory=None):
+def measure(rows, *, legacy_codes=False, connection_factory=None):
     if type(rows) is not int or not MIN_ROWS<=rows<=MAX_ROWS:
         raise ValueError("Use 1,000..200,000 synthetic cards")
     url=test_url()  # Guard BEFORE opening the connection.
@@ -58,15 +58,17 @@ def measure(rows, *, connection_factory=None):
             raise RuntimeError("Could not allocate local benchmark catalog row")
         cursor=connection.execute("""INSERT INTO owned_cards
             (code,character_id,owner_id,generation,catcher_id,caught_chat_id)
-            SELECT 'BM'||%s||LPAD(g::text,8,'0'),%s,
+            SELECT CASE WHEN %s THEN 'BM'||%s||LPAD(g::text,8,'0')
+                        ELSE NULL END,%s,
                    100000+(g %% 2000),g,100000+(g %% 2000),-100000900
             FROM generate_series(1,%s) AS g""",
-            (tag,char["id"],rows))
+            (legacy_codes,tag,char["id"],rows))
         if cursor.rowcount != rows:
             raise RuntimeError("Synthetic inserted-row count does not match")
         after=ownership_table_sizes(connection)
         report={
             "synthetic_copies":rows,
+            "legacy_code_mode":legacy_codes,
             "heap_delta_bytes":after["heap"]-start["heap"],
             "index_delta_bytes":after["indexes"]-start["indexes"],
             "total_delta_bytes":after["total"]-start["total"],
@@ -85,6 +87,8 @@ def measure(rows, *, connection_factory=None):
 def main():
     cli=argparse.ArgumentParser(description=__doc__)
     cli.add_argument("--rows",type=int,default=10000)
+    cli.add_argument("--legacy-codes",action="store_true",
+                     help="Benchmark old 10-character text code rows instead of compact numeric-only copies")
     cli.add_argument("--run",action="store_true",
                      help="Explicitly create rolled-back fixture rows in local PostgreSQL")
     cli_args=cli.parse_args()
@@ -92,7 +96,7 @@ def main():
         print(json.dumps({"mode":"dry_run","rows_requested":cli_args.rows,
                           "database_connections":0,"writes":0},indent=2))
         return 0
-    print(json.dumps(measure(cli_args.rows),indent=2))
+    print(json.dumps(measure(cli_args.rows,legacy_codes=cli_args.legacy_codes),indent=2))
     return 0
 
 
