@@ -45,7 +45,7 @@ SQL_UPSERT="""INSERT INTO characters
   SELECT source_key,name,series,aliases,category,rarity,image_url,weight,
      artwork_author,artwork_license_name,artwork_license_url,
      artwork_page_url,enabled
-    FROM cardkout_bulk_urls
+    FROM cardkout_bulk_urls WHERE TRUE
   ON CONFLICT (source_key) WHERE source_key IS NOT NULL
   DO UPDATE SET
     name=EXCLUDED.name,series=EXCLUDED.series,aliases=EXCLUDED.aliases,
@@ -59,7 +59,10 @@ SQL_UPSERT="""INSERT INTO characters
     telegram_file_id=CASE WHEN characters.image_url
                           IS DISTINCT FROM EXCLUDED.image_url
                           THEN NULL ELSE characters.telegram_file_id END,
-    enabled=EXCLUDED.enabled"""
+    enabled=CASE
+      WHEN characters.image_url IS DISTINCT FROM EXCLUDED.image_url
+      THEN EXCLUDED.enabled
+      ELSE characters.enabled OR EXCLUDED.enabled END"""
 
 
 def valid_https(url, *, page=False):
@@ -243,8 +246,9 @@ def apply(db,sqlite_db,stats, *,limit_bytes=DATABASE_LIMIT):
     if type(limit_bytes) is not int or limit_bytes<RESERVE_BYTES:
         raise ValueError("Storage limit too small")
     current=int(db.execute("SELECT pg_database_size(current_database()) AS size").fetchone()["size"])
-    projected=current+stats["unique_characters"]*PER_NEW_CHARACTER_BUDGET+RESERVE_BYTES
-    if projected>limit_bytes:
+    # Existing IDs may be pure updates; do not count them as 1m new rows.
+    # The exact NEW-ID count is checked below before any permanent writes.
+    if current+RESERVE_BYTES>limit_bytes:
         raise ValueError("Storage reserve exceeded; split the source batch or expand DB quota")
     db.execute("""CREATE TEMP TABLE cardkout_bulk_urls
         (source_key TEXT PRIMARY KEY,name TEXT NOT NULL,series TEXT NOT NULL,
