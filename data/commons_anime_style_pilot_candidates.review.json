@@ -1,0 +1,30 @@
+[
+  {
+    "source_key": "commons:wikipe-tan:original",
+    "character_name": "Wikipe-tan",
+    "series": "Wikimedia Anime and Manga Project",
+    "commons_file_title": "File:Wikipe-tan sailor fuku.png",
+    "candidate_image_url": "https://upload.wikimedia.org/wikipedia/commons/0/0e/Wikipe-tan_sailor_fuku.png",
+    "file_page_url": "https://commons.wikimedia.org/wiki/File:Wikipe-tan_sailor_fuku.png",
+    "role": "potential_base_art",
+    "license_hint": "CC BY-SA 3.0; also older BY-SA/GFDL options (verify on page)",
+    "artist_hint": "Kasuga",
+    "file_metadata_hint": "PNG 1000x2100; ~113 KB",
+    "rights_status": "page_license_found_pending_independent_review",
+    "study_note": "Wikimedia volunteer-created original anime/manga mascot. Attribution and share-alike required for applicable reuse; Telegram send test not done."
+  },
+  {
+    "source_key": "commons:wikipe-tan:alternate-head",
+    "character_name": "Wikipe-tan",
+    "series": "Wikimedia Anime and Manga Project",
+    "commons_file_title": "File:Wikipe-tan head.png",
+    "candidate_image_url": "https://upload.wikimedia.org/wikipedia/commons/a/ac/Wikipe-tan_head.png",
+    "file_page_url": "https://commons.wikimedia.org/wiki/File:Wikipe-tan_head.png",
+    "role": "potential_variant_art",
+    "license_hint": "CC BY-SA 3.0; older BY-SA/GFDL options (verify on page)",
+    "artist_hint": "Kasuga",
+    "file_metadata_hint": "PNG 720x720; ~65 KB",
+    "rights_status": "page_license_found_pending_independent_review",
+    "study_note": "Same character: alternate illustration, NOT a second unique character. Must attach as approved variant only after explicit rights and attribution check."
+  }
+]

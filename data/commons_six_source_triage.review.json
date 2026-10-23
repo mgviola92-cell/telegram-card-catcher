@@ -1,0 +1,79 @@
+{
+  "observed_on": "2026-10-20",
+  "origin": "data/commons_live_shortlist_20261020.pending.json",
+  "note": "Independent file-page research and warning triage; no artwork approved or imported. Categories and license claims alone do NOT certify subject suitability, all relevant rights or Telegram compatibility. This file is NOT an approval manifest.",
+  "reviews": [
+    {
+      "file_title": "File:Abstract Wikipe-tan.png",
+      "file_page_url": "https://commons.wikimedia.org/wiki/File:Abstract_Wikipe-tan.png",
+      "triage_status": "blocked_pending_cross_franchise_derivative_review",
+      "review_notes": "Wikimedia file is also categorized under The Amazing Digital Circus; cross-franchise/original-author permissions and exact depicted subject cannot be assumed. Hold even though file has CC claim.",
+      "artwork_identity_verified": false,
+      "reuse_rights_verified": false,
+      "content_suitability_verified": false,
+      "upstream_terms_verified": false,
+      "telegram_photo_verified": false,
+      "approved_for_import": false
+    },
+    {
+      "file_title": "File:Commons-tan cropped.png",
+      "file_page_url": "https://commons.wikimedia.org/wiki/File:Commons-tan_cropped.png",
+      "triage_status": "pending_source_page_and_crop_provenance",
+      "review_notes": "Exact cropped file page and original Wiki-sisters derivation/attribution need separate confirmation. No Telegram test.",
+      "artwork_identity_verified": false,
+      "reuse_rights_verified": false,
+      "content_suitability_verified": false,
+      "upstream_terms_verified": false,
+      "telegram_photo_verified": false,
+      "approved_for_import": false
+    },
+    {
+      "file_title": "File:Commons-tan.png",
+      "file_page_url": "https://commons.wikimedia.org/wiki/File:Commons-tan.png",
+      "triage_status": "pending_independent_visual_and_credit_review",
+      "review_notes": "File page says Commons-tan extracted from Wiki-sisters art by Kasuga; derivative credit/license and image quality still need sign-off.",
+      "artwork_identity_verified": false,
+      "reuse_rights_verified": false,
+      "content_suitability_verified": false,
+      "upstream_terms_verified": false,
+      "telegram_photo_verified": false,
+      "approved_for_import": false
+    },
+    {
+      "file_title": "File:Wikiquote-tan child-single.png",
+      "file_page_url": "https://commons.wikimedia.org/wiki/File:Wikiquote-tan_child-single.png",
+      "triage_status": "pending_independent_visual_and_credit_review",
+      "review_notes": "File page describes single Wikiquote-tan figure from Wiki-sisters art; Kasuga and Zscout370 alteration credit must be respected. No Telegram photo test.",
+      "artwork_identity_verified": false,
+      "reuse_rights_verified": false,
+      "content_suitability_verified": false,
+      "upstream_terms_verified": false,
+      "telegram_photo_verified": false,
+      "approved_for_import": false
+    },
+    {
+      "file_title": "File:Kiki the cyber squirrel mascot of krita 3.png",
+      "file_page_url": "https://commons.wikimedia.org/wiki/File:Kiki_the_cyber_squirrel_mascot_of_krita_3.png",
+      "triage_status": "pending_high_priority_exact_photo_review",
+      "review_notes": "Original Commons file page names Tyson Tan and CC BY-SA 4.0; official Krita page establishes the mascot and dual licensing. Crop/license obligations and Telegram test outstanding.",
+      "artwork_identity_verified": false,
+      "reuse_rights_verified": false,
+      "content_suitability_verified": false,
+      "upstream_terms_verified": false,
+      "telegram_photo_verified": false,
+      "approved_for_import": false
+    },
+    {
+      "file_title": "File:Kiki the Cyber Squirrel mascot of Krita cropped square profile.png",
+      "file_page_url": "https://commons.wikimedia.org/wiki/File:Kiki_the_Cyber_Squirrel_mascot_of_Krita_cropped_square_profile.png",
+      "triage_status": "pending_high_priority_exact_photo_review",
+      "review_notes": "Commons file page names Tyson Tan and CC BY-SA 4.0; exact profile crop derivation and Telegram photo test outstanding.",
+      "artwork_identity_verified": false,
+      "reuse_rights_verified": false,
+      "content_suitability_verified": false,
+      "upstream_terms_verified": false,
+      "telegram_photo_verified": false,
+      "approved_for_import": false
+    }
+  ]
+}

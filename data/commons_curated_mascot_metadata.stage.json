@@ -1,0 +1,52 @@
+[
+  {
+    "source_key": "commons:wikipe-tan:original",
+    "name": "Wikipe-tan",
+    "series": "Wikimedia mascots",
+    "category": "other",
+    "source_category": "Category:Wikipe-tan",
+    "image_url": null,
+    "status": "pending_character_identity_artwork_rights_and_safety",
+    "source_url": "https://commons.wikimedia.org/wiki/Category:Wikipe-tan",
+    "aliases": [
+      "ウィキペたん"
+    ]
+  },
+  {
+    "source_key": "commons:commons-tan:original",
+    "name": "Commons-tan",
+    "series": "Wikimedia mascots",
+    "category": "other",
+    "source_category": "Category:Commons-tan",
+    "image_url": null,
+    "status": "pending_character_identity_artwork_rights_and_safety",
+    "source_url": "https://commons.wikimedia.org/wiki/Category:Commons-tan",
+    "aliases": []
+  },
+  {
+    "source_key": "commons:wikiquote-tan:original",
+    "name": "Wikiquote-tan",
+    "series": "Wikimedia mascots",
+    "category": "other",
+    "source_category": "Category:Wikiquote-tan",
+    "image_url": null,
+    "status": "pending_character_identity_artwork_rights_and_safety",
+    "source_url": "https://commons.wikimedia.org/wiki/Category:Wikiquote-tan",
+    "aliases": [
+      "Quote-tan"
+    ]
+  },
+  {
+    "source_key": "commons:kiki:original",
+    "name": "Kiki the Cyber Squirrel",
+    "series": "Krita",
+    "category": "other",
+    "source_category": "Category:Kiki the Cyber Squirrel",
+    "image_url": null,
+    "status": "pending_character_identity_artwork_rights_and_safety",
+    "source_url": "https://commons.wikimedia.org/wiki/Category:Kiki_the_Cyber_Squirrel",
+    "aliases": [
+      "Kiki"
+    ]
+  }
+]

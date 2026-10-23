@@ -18,9 +18,14 @@ class WelcomeTests(unittest.TestCase):
         self.assertEqual(callbacks, {"ui:harem", "ui:cmds", "ui:guide"})
 
     def test_command_menu_only_lists_working_commands(self):
-        for command in ('/harem', '/check', '/fav', '/search', '/changetime'):
-            self.assertIn(command, welcome.COMMANDS_TEXT)
-        self.assertNotIn('/market —', welcome.COMMANDS_TEXT)
+        commands=('/harem','/check','/fav','/search','/changetime',
+                  '/gift','/trade','/market','/listcard','/unlist',
+                  '/top','/gtop','/today','/stats','/progress',
+                  '/series','/duplicates','/missing')
+        for command in commands:
+            with self.subTest(command=command):
+                self.assertIn(command, welcome.COMMANDS_TEXT)
+        self.assertIn('Advanced Cards', welcome.COMMANDS_TEXT)
 
 
 if __name__ == '__main__':

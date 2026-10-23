@@ -1,12 +1,11 @@
 """PostgreSQL persistence; no character images stored on Render disk."""
 import os
 import secrets
-import string
 import psycopg
 from psycopg.rows import dict_row
 from app.card_refs import parse_card_ref
+from app.weighted_catalog import select_active_character
 
-ALPHABET = string.ascii_uppercase + string.digits
 RARITIES = ('Common', 'Uncommon', 'Rare', 'Legendary', 'Mystical',
             'Divine', 'CrossVerse', 'Cataphract', 'Supreme', 'CNFT')
 
@@ -25,8 +24,11 @@ def get_cards(user_id, page=0, size=8):
     page = max(0, min(int(page), 99999))
     with connect() as db:
         total = db.execute('SELECT count(*) AS n FROM owned_cards WHERE owner_id=%s', (user_id,)).fetchone()['n']
-        cards = db.execute("""SELECT o.id AS card_id,o.code,o.generation,o.favorite,c.name,c.series,c.rarity
+        cards = db.execute("""SELECT o.id AS card_id,o.code,o.generation,o.favorite,o.variant_id,
+              c.name,c.series,COALESCE(v.rarity,c.rarity) AS rarity,
+              v.label AS variant_label
             FROM owned_cards o JOIN characters c ON c.id=o.character_id
+            LEFT JOIN character_variants v ON v.id=o.variant_id
             WHERE o.owner_id=%s ORDER BY o.obtained_at DESC,o.id DESC
             LIMIT %s OFFSET %s""", (user_id, size, page * size)).fetchall()
         return cards, total
@@ -39,9 +41,17 @@ def get_card(code):
     field, value = parsed
     predicate = "o.id=%s" if field == "id" else "o.code=%s"
     with connect() as db:
-        return db.execute(f"""SELECT o.id AS card_id,o.code,o.character_id,o.generation,
-                o.owner_id,o.favorite,c.name,c.series,c.rarity,c.image_url,c.telegram_file_id
+        return db.execute(f"""SELECT o.id AS card_id,o.code,o.character_id,o.variant_id,o.generation,
+                o.owner_id,o.favorite,c.name,c.series,
+                COALESCE(v.rarity,c.rarity) AS rarity,v.label AS variant_label,
+                CASE WHEN o.variant_id IS NULL THEN c.image_url ELSE v.image_url END AS image_url,
+                CASE WHEN o.variant_id IS NULL THEN c.telegram_file_id ELSE v.telegram_file_id END AS telegram_file_id,
+                CASE WHEN o.variant_id IS NULL THEN c.artwork_author ELSE v.artwork_author END AS artwork_author,
+                CASE WHEN o.variant_id IS NULL THEN c.artwork_license_name ELSE v.artwork_license_name END AS artwork_license_name,
+                CASE WHEN o.variant_id IS NULL THEN c.artwork_license_url ELSE v.artwork_license_url END AS artwork_license_url,
+                CASE WHEN o.variant_id IS NULL THEN c.artwork_page_url ELSE v.artwork_page_url END AS artwork_page_url
             FROM owned_cards o JOIN characters c ON c.id=o.character_id
+            LEFT JOIN character_variants v ON v.id=o.variant_id
             WHERE {predicate}""", (value,)).fetchone()
 
 
@@ -57,30 +67,64 @@ def try_spawn(chat_id, default_every):
                     (setting['last_spawn'],)).fetchone()['expired']
                 if not expired:
                     return None
-                cur.execute('UPDATE group_settings SET active_character_id=NULL WHERE chat_id=%s', (chat_id,))
+                cur.execute('UPDATE group_settings SET active_character_id=NULL,active_variant_id=NULL WHERE chat_id=%s', (chat_id,))
             count = setting['message_count'] + 1
             if count < setting['spawn_every']:
                 cur.execute('UPDATE group_settings SET message_count=%s WHERE chat_id=%s', (count,chat_id))
                 return None
-            # Weighted selection; no image downloads or SQL random sort per row.
-            char = cur.execute("""SELECT * FROM characters WHERE enabled=true AND weight>0
-                ORDER BY -ln(greatest(random(),0.000001))/weight LIMIT 1""").fetchone()
+            # Pick IDs from compact on-demand weighted arrays (no full-table
+            # random sort on every spawn), then verify enabled in PostgreSQL.
+            char = select_active_character(db)
             if char is None:
                 cur.execute('UPDATE group_settings SET message_count=0 WHERE chat_id=%s', (chat_id,))
                 return None
-            cur.execute("""UPDATE group_settings SET message_count=0,active_character_id=%s,
-                last_spawn=now() WHERE chat_id=%s""", (char['id'],chat_id))
-            return char
+            # Artwork is chosen only from explicitly enabled shared variants.
+            selected=None
+            if secrets.randbelow(100) < 25:
+                selected=cur.execute("""SELECT id,label,image_url,
+                        telegram_file_id,rarity,artwork_author,artwork_license_name,
+                        artwork_license_url,artwork_page_url
+                    FROM character_variants
+                    WHERE character_id=%s AND enabled=true AND spawn_weight>0
+                    ORDER BY -ln(greatest(random(),0.000001))/spawn_weight LIMIT 1""",
+                    (char['id'],)).fetchone()
+            appearance=dict(char,character_id=char['id'],variant_id=None,variant_label=None)
+            if selected:
+                appearance.update(variant_id=selected['id'],variant_label=selected['label'],
+                    image_url=selected['image_url'],telegram_file_id=selected['telegram_file_id'],
+                    rarity=selected['rarity'],
+                    artwork_author=selected['artwork_author'],
+                    artwork_license_name=selected['artwork_license_name'],
+                    artwork_license_url=selected['artwork_license_url'],
+                    artwork_page_url=selected['artwork_page_url'])
+            cur.execute("""UPDATE group_settings SET message_count=0,
+                active_character_id=%s,active_variant_id=%s,last_spawn=now()
+                WHERE chat_id=%s""",
+                (char['id'],appearance['variant_id'],chat_id))
+            return appearance
 
 
-def cache_image(character_id, file_id):
+def cache_image(character_id, file_id, variant_id=None, expected_url=None):
+    """Cache reusable artwork only when the source URL still matches."""
+    if not expected_url:
+        return False
     with connect() as db:
-        db.execute('UPDATE characters SET telegram_file_id=%s WHERE id=%s', (file_id,character_id))
+        if variant_id is not None:
+            row=db.execute("""UPDATE character_variants SET telegram_file_id=%s
+                WHERE id=%s AND character_id=%s AND image_url=%s RETURNING id""",
+                (file_id,variant_id,character_id,expected_url)).fetchone()
+        else:
+            row=db.execute("""UPDATE characters SET telegram_file_id=%s
+                WHERE id=%s AND image_url=%s RETURNING id""",
+                (file_id,character_id,expected_url)).fetchone()
+        return row is not None
 
 
 def clear_spawn(chat_id, character_id):
     with connect() as db:
-        db.execute('UPDATE group_settings SET active_character_id=NULL WHERE chat_id=%s AND active_character_id=%s',
+        db.execute("""UPDATE group_settings
+                   SET active_character_id=NULL,active_variant_id=NULL
+                   WHERE chat_id=%s AND active_character_id=%s""",
                    (chat_id,character_id))
 
 
@@ -90,7 +134,7 @@ def claim(chat_id, user_id, guessed):
         return None
     with connect() as db:
         with db.cursor() as cur:
-            setting = cur.execute("""SELECT active_character_id,last_spawn FROM group_settings
+            setting = cur.execute("""SELECT active_character_id,active_variant_id,last_spawn FROM group_settings
                 WHERE chat_id=%s FOR UPDATE""", (chat_id,)).fetchone()
             if not setting or not setting['active_character_id']:
                 return None
@@ -99,7 +143,7 @@ def claim(chat_id, user_id, guessed):
             recent = cur.execute("""SELECT %s >= now()-interval '15 minutes' AS recent""",
                                  (setting['last_spawn'],)).fetchone()['recent']
             if not recent:
-                cur.execute('UPDATE group_settings SET active_character_id=NULL WHERE chat_id=%s', (chat_id,))
+                cur.execute('UPDATE group_settings SET active_character_id=NULL,active_variant_id=NULL WHERE chat_id=%s', (chat_id,))
                 return None
             char = cur.execute('SELECT * FROM characters WHERE id=%s', (setting['active_character_id'],)).fetchone()
             if guessed not in {normalize_name(n) for n in [char['name'],*char['aliases']]}:
@@ -108,17 +152,23 @@ def claim(chat_id, user_id, guessed):
             cur.execute('SELECT pg_advisory_xact_lock(%s)', (char['id'],))
             generation = cur.execute("""SELECT COALESCE(max(generation),0)+1 AS next FROM owned_cards
                 WHERE character_id=%s""", (char['id'],)).fetchone()['next']
-            for _ in range(12):
-                code = ''.join(secrets.choice(ALPHABET) for _ in range(10))
-                if not cur.execute('SELECT 1 FROM owned_cards WHERE code=%s', (code,)).fetchone():
-                    break
-            else:
-                raise RuntimeError('Unable to allocate card code')
-            created = cur.execute("""INSERT INTO owned_cards(code,character_id,owner_id,generation)
-                VALUES (%s,%s,%s,%s) RETURNING id""",
-                (code,char['id'],user_id,generation)).fetchone()
-            cur.execute('UPDATE group_settings SET active_character_id=NULL WHERE chat_id=%s', (chat_id,))
-            return dict(char,code=code,card_id=created['id'],generation=generation)
+            # owned_cards.id is the only new public identifier. Preserve
+            # existing legacy codes on old copies but stop allocating a second
+            # random text identifier (and extra lookup) for every new catch.
+            variant_id=setting['active_variant_id']
+            variant=(cur.execute("""SELECT label,rarity FROM character_variants
+                WHERE id=%s AND character_id=%s""",
+                (variant_id,char['id'])).fetchone() if variant_id else None)
+            created = cur.execute("""INSERT INTO owned_cards
+                (character_id,owner_id,generation,catcher_id,caught_chat_id,variant_id)
+                VALUES (%s,%s,%s,%s,%s,%s) RETURNING id""",
+                (char['id'],user_id,generation,user_id,chat_id,
+                 variant_id)).fetchone()
+            cur.execute('UPDATE group_settings SET active_character_id=NULL,active_variant_id=NULL WHERE chat_id=%s', (chat_id,))
+            return dict(char,code=None,card_id=created['id'],
+                        generation=generation,variant_id=variant_id,
+                        variant_label=variant['label'] if variant else None,
+                        rarity=variant['rarity'] if variant else char['rarity'])
 
 
 def normalize_name(value):

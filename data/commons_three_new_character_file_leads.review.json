@@ -1,0 +1,52 @@
+[
+  {
+    "source_key": "commons:commons-tan:original",
+    "character_name": "Commons-tan",
+    "commons_file_title": "File:Commons-tan.png",
+    "file_page_url": "https://commons.wikimedia.org/wiki/File:Commons-tan.png",
+    "file_mime_from_page": "image/png",
+    "dimensions_from_page": "200×480",
+    "creator_from_page": "Kasuga",
+    "license_options_from_page": [
+      "CC BY-SA 3.0",
+      "CC BY-SA 2.5",
+      "GFDL"
+    ],
+    "notes": "Character figure cropped from Wiki-sisters illustration; confirm originality/attribution and re-use terms independently.",
+    "candidate_image_url": null,
+    "approvals": 0
+  },
+  {
+    "source_key": "commons:wikiquote-tan:original",
+    "character_name": "Wikiquote-tan",
+    "commons_file_title": "File:Wikiquote-tan child-single.png",
+    "file_page_url": "https://commons.wikimedia.org/wiki/File:Wikiquote-tan_child-single.png",
+    "file_mime_from_page": "image/png",
+    "dimensions_from_page": "217×412",
+    "creator_from_page": "Kasuga, with edits by Zscout370 (logo removal)",
+    "license_options_from_page": [
+      "CC BY-SA 3.0",
+      "CC BY-SA 2.5",
+      "GFDL"
+    ],
+    "notes": "Shown as a single-character illustration. Do not substitute Quote-tan.png, which Commons describes as an accessory rather than an entire character.",
+    "candidate_image_url": null,
+    "approvals": 0
+  },
+  {
+    "source_key": "commons:kiki:original",
+    "character_name": "Kiki the Cyber Squirrel",
+    "commons_file_title": "File:Kiki the Cyber Squirrel mascot of Krita version 5.0 splash (cropped).png",
+    "file_page_url": "https://commons.wikimedia.org/wiki/File:Kiki_the_Cyber_Squirrel_mascot_of_Krita_version_5.0_splash_(cropped).png",
+    "file_mime_from_page": "image/png",
+    "dimensions_from_page": "1013×864",
+    "creator_from_page": "Tyson Tan",
+    "license_options_from_page": [
+      "CC BY-SA 4.0",
+      "GPLv3"
+    ],
+    "notes": "Cropped promotional splash art. Needs independent source and attribution/derivative analysis, actual media URL and Telegram send check.",
+    "candidate_image_url": null,
+    "approvals": 0
+  }
+]

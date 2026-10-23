@@ -5,10 +5,14 @@ from flask import Flask, abort, request
 import telebot
 from telebot import types
 from app import storage
-from app.webhook_guard import begin_update
+from app.webhook_guard import (claim_update, mark_completed, mark_failed,
+                               valid_update_id)
 from app import welcome
 from app.owned_media import send_owned_card
 from app import card_ui
+from app import card_exchange, catch_rankings, card_social_ui
+from app import collection_stats, collection_stats_ui
+from app import market_board, market_board_ui
 from app.card_refs import public_card_id
 
 logging.basicConfig(level=logging.INFO)
@@ -203,6 +207,154 @@ def search_command(msg):
         return
     bot.reply_to(msg, card_ui.search_text(found), parse_mode='HTML')
 
+@bot.message_handler(commands=['gift','trade'])
+def exchange_command(msg):
+    """Reply to a person: explicit recipient acceptance prevents silent transfer."""
+    command = msg.text.split()[0].split('@')[0].lower()
+    if msg.chat.type not in ('group','supergroup'):
+        bot.reply_to(msg,'🎁 Gifts and trades must be offered in a group by replying to the person.')
+        return
+    target = getattr(getattr(msg,'reply_to_message',None),'from_user',None)
+    if (not target or getattr(target,'is_bot',False)
+        or getattr(msg.from_user,'is_bot',False)
+        or target.id == msg.from_user.id):
+        bot.reply_to(msg,'Reply to another real member’s message to make an offer.')
+        return
+    args=msg.text.split()[1:]
+    if command=='/gift' and len(args)==1:
+        offer=card_exchange.create_gift(msg.from_user.id,target.id,args[0])
+        kind='gift'
+    elif command=='/trade' and len(args)==2:
+        offer=card_exchange.create_trade(msg.from_user.id,target.id,args[0],args[1])
+        kind='trade'
+    else:
+        bot.reply_to(msg,'Usage (reply to a member): /gift MY_ID or /trade MY_ID THEIR_ID')
+        return
+    if not offer:
+        bot.reply_to(msg,'Offer unavailable. Check card IDs, ownership and pending-offer limit.')
+        return
+    card_ids=([offer['card_id']] if kind=='gift' else
+              [offer['sender_card_id'],offer['receiver_card_id']])
+    caption=card_social_ui.offer_caption(
+        kind, msg.from_user.first_name, target.first_name, card_ids)
+    bot.reply_to(msg, caption, parse_mode='HTML',
+                 reply_markup=card_social_ui.exchange_keyboard(kind,offer['offer_id']))
+
+
+@bot.callback_query_handler(
+    func=lambda q: bool(q.data) and q.data.startswith('exchange:'))
+def exchange_callback(q):
+    parts=q.data.split(':')
+    if (len(parts)!=4 or parts[0]!='exchange'
+        or parts[1] not in ('g','t')
+        or parts[3] not in ('a','d') or not parts[2].isdigit()):
+        bot.answer_callback_query(q.id,'Invalid offer.',show_alert=True)
+        return
+    offer_id=int(parts[2])
+    kind='gift' if parts[1]=='g' else 'trade'
+    result=card_exchange.finish_offer(kind,offer_id,q.from_user.id,parts[3]=='a')
+    if result is None:
+        bot.answer_callback_query(q.id,
+            'Only the recipient can respond to an active offer.',show_alert=True)
+        return
+    response=card_social_ui.result_caption(kind,result['status'],
+                                           result.get('card_ids'))
+    try:
+        bot.edit_message_text(response,q.message.chat.id,q.message.message_id,
+                              parse_mode='HTML',reply_markup=None)
+    except telebot.apihelper.ApiTelegramException:
+        logging.exception('Gift/trade settled; Telegram message update failed')
+    bot.answer_callback_query(q.id,result['status'].capitalize())
+
+
+@bot.message_handler(commands=['top','gtop','today'])
+def top_command(msg):
+    command=msg.text.split()[0].split('@')[0].lower()
+    if command=='/gtop':
+        if msg.chat.type not in ('group','supergroup'):
+            bot.reply_to(msg,'Use /gtop in a group.')
+            return
+        entries=catch_rankings.catch_leaderboard(chat_id=msg.chat.id)
+        kind='group'
+    elif command=='/today':
+        entries=catch_rankings.catch_leaderboard(today=True)
+        kind='today'
+    else:
+        entries=catch_rankings.catch_leaderboard()
+        kind='global'
+    bot.reply_to(msg,card_social_ui.leaderboard_caption(entries,kind),
+                 parse_mode='HTML',disable_web_page_preview=True)
+
+
+@bot.message_handler(commands=['stats','progress','series'])
+def collection_stats_command(msg):
+    cmd=msg.text.split()[0].split('@')[0].lower()
+    if cmd=='/stats':
+        response=collection_stats_ui.overview_text(
+            collection_stats.overview(msg.from_user.id))
+    elif cmd=='/progress':
+        response=collection_stats_ui.progress_text(
+            collection_stats.recent_series_progress(msg.from_user.id))
+    else:
+        args=msg.text.split(maxsplit=1)
+        if len(args)!=2 or not 1<=len(args[1].strip())<=150:
+            bot.reply_to(msg,'Usage: /series EXACT SERIES NAME')
+            return
+        row=collection_stats.series_progress(msg.from_user.id,args[1].strip())
+        response=collection_stats_ui.series_text(row)
+    bot.reply_to(msg,response,parse_mode='HTML')
+
+
+@bot.message_handler(commands=['duplicates','missing'])
+def completion_details_command(msg):
+    cmd=msg.text.split()[0].split('@')[0].lower()
+    if cmd=='/duplicates':
+        if len(msg.text.split())!=1:
+            bot.reply_to(msg,'Usage: /duplicates')
+            return
+        rows=collection_stats.duplicate_characters(msg.from_user.id)
+        text=collection_stats_ui.duplicates_text(rows)
+    else:
+        args=msg.text.split(maxsplit=1)
+        if len(args)!=2 or not 1<=len(args[1].strip())<=150:
+            bot.reply_to(msg,'Usage: /missing EXACT SERIES NAME')
+            return
+        rows=collection_stats.missing_characters(msg.from_user.id,args[1].strip())
+        text=collection_stats_ui.missing_text(rows)
+    bot.reply_to(msg,text,parse_mode='HTML')
+
+
+@bot.message_handler(commands=['market','listcard','unlist'])
+def market_command(msg):
+    cmd=msg.text.split()[0].split('@')[0].lower()
+    if msg.chat.type not in ('group','supergroup'):
+        bot.reply_to(msg,'Use the trade board inside a group.')
+        return
+    args=msg.text.split()
+    if cmd=='/market':
+        if len(args)!=1:
+            bot.reply_to(msg,'Usage: /market')
+            return
+        entries=market_board.group_market(msg.chat.id)
+        caption=market_board_ui.market_caption(entries)
+    elif cmd=='/listcard':
+        if len(args)!=2:
+            bot.reply_to(msg,'Usage: /listcard MY_CARD_ID')
+            return
+        offer=market_board.list_card(msg.from_user.id,msg.chat.id,args[1])
+        caption=(market_board_ui.listed_caption(offer['card_id'])
+                 if offer else 'Could not list: check ownership or 5-card listing limit.')
+    else:
+        if len(args)!=2:
+            bot.reply_to(msg,'Usage: /unlist MY_CARD_ID')
+            return
+        ok=market_board.unlist_card(msg.from_user.id,args[1])
+        caption=('✅ Your trade listing was removed.'
+                 if ok else 'Listing not found or you are not its owner.')
+    bot.reply_to(msg,caption,parse_mode='HTML',
+                 disable_web_page_preview=True)
+
+
 @bot.message_handler(commands=['changetime'])
 def changetime(msg):
     if msg.chat.type=='private':
@@ -268,10 +420,38 @@ def webhook(secret):
     data=request.get_json(silent=True)
     if not isinstance(data,dict) or 'update_id' not in data:
         abort(400)
-    if not isinstance(data['update_id'], int):
+    update_id=data['update_id']
+    if not valid_update_id(update_id):
         abort(400)
-    if not begin_update(data['update_id']):
+    # Parse BEFORE claiming: malformed JSON should not permanently occupy an
+    # update_id in the durable inbox.
+    try:
+        update=types.Update.de_json(data)
+    except (TypeError,ValueError):
+        abort(400)
+    if update is None:
+        abort(400)
+    state,attempt=claim_update(update_id)
+    if state == 'done':
         return 'OK',200
-    update=types.Update.de_json(data)
-    bot.process_new_updates([update])
+    if state == 'busy':
+        # Don't acknowledge a still-running update; Telegram will retry.
+        return 'RETRY',503,{'Retry-After':'2'}
+    try:
+        bot.process_new_updates([update])
+    except Exception:
+        logging.exception('Telegram update %s failed; release for retry',update_id)
+        try:
+            mark_failed(update_id,attempt)
+        except Exception:
+            logging.exception('Cannot release webhook update %s (lease will expire)',update_id)
+        return 'RETRY',503,{'Retry-After':'2'}
+    try:
+        completed=mark_completed(update_id,attempt)
+    except Exception:
+        logging.exception('Cannot commit webhook completion %s',update_id)
+        completed=False
+    if not completed:
+        # Lost a processing lease or transient DB error: no false 200 ACK.
+        return 'RETRY',503,{'Retry-After':'2'}
     return 'OK',200

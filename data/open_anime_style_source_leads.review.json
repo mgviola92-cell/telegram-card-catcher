@@ -1,0 +1,26 @@
+[
+  {
+    "candidate_key": "source:krita-kiki:official-mascot",
+    "character_name": "Kiki the Cyber Squirrel",
+    "series": "Krita mascot",
+    "category": "other",
+    "source_page": "https://krita.org/en/about/mascot/",
+    "creator": "Tyson Tan",
+    "license_statement": "Krita official page says artwork on this page is dual-licensed GPL and CC BY-SA",
+    "media_url": null,
+    "status": "research_only_not_importable",
+    "pending": "Choose exact single-character picture and precise applicable CC license URL, verify image source/rights, audience suitability, Telegram delivery and attribution; must not use site logos by default."
+  },
+  {
+    "candidate_key": "source:pepper-and-carrot:official-art",
+    "character_name": "Pepper",
+    "series": "Pepper&Carrot",
+    "category": "other",
+    "source_page": "https://www.peppercarrot.com/en/viewer/artworks-src__2021-10-10_Pepper_by-David-Revoy.html",
+    "creator": "David Revoy",
+    "license_statement": "Creator artwork page says CC BY 4.0 with separate AI derivation prohibition",
+    "media_url": null,
+    "status": "research_only_not_importable",
+    "pending": "Interpret current license and AI exception accurately, select stable exact artwork URL from author's page, check character identity, proper credit and Telegram photo compatibility. Do not imply permission for AI derivatives."
+  }
+]

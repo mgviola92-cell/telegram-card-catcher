@@ -31,20 +31,22 @@ class NumericStorageTests(unittest.TestCase):
     def test_new_catch_returns_existing_numeric_identity_not_random_code(self):
         db,cur=self.connect()
         cur.fetchone.side_effect=[
-            {'active_character_id':42,'last_spawn':'now'},
+            {'active_character_id':42,'active_variant_id':None,'last_spawn':'now'},
             {'recent':True},
-            {'id':42,'name':'Alice','aliases':[], 'series':'Wonderland'},
+            {'id':42,'name':'Alice','aliases':[], 'series':'Wonderland','rarity':'Common'},
             {'next':1},
-            None,       # generated random legacy code is unique
             {'id':6103} # INSERT INTO owned_cards ... RETURNING id
         ]
-        with patch('app.storage.connect') as mocked, \
-             patch('app.storage.secrets.choice',return_value='A'):
+        with patch('app.storage.connect') as mocked:
             mocked.return_value.__enter__.return_value=db
             card=storage.claim(-10001,345,'Alice')
         self.assertEqual(card['card_id'],6103)
         self.assertEqual(card['generation'],1)
-        self.assertEqual(card['code'],'AAAAAAAAAA')
+        self.assertIsNone(card['code'])
+        self.assertFalse(any("WHERE code=%s" in call.args[0]
+                             for call in cur.execute.call_args_list))
+        self.assertTrue(any("VALUES (%s,%s,%s,%s,%s,%s) RETURNING id" in call.args[0]
+                            for call in cur.execute.call_args_list))
         self.assertTrue(any('RETURNING id' in args.args[0]
                             for args in cur.execute.call_args_list))
 
